@@ -22,7 +22,7 @@ import { AddArticleModal } from "@/components/kanban/AddArticleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Wifi } from "lucide-react";
+import { Plus, Search, Wifi, DollarSign, Star, FileText } from "lucide-react";
 
 // Non-published mock cards represent the pipeline stages we don't have real data for
 const PIPELINE_MOCK_CARDS = MOCK_CARDS.filter((c) => c.column !== "published");
@@ -217,6 +217,41 @@ export default function ContentPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Column footer aggregates */}
+                  {colCards.length > 0 && (() => {
+                    const withCost = colCards.filter((c) => c.cost !== undefined);
+                    const withQuality = colCards.filter((c) => c.qualityScore !== undefined);
+                    const withWords = colCards.filter((c) => c.wordCount !== undefined);
+                    const totalCost = withCost.reduce((s, c) => s + (c.cost ?? 0), 0);
+                    const avgQuality = withQuality.length
+                      ? withQuality.reduce((s, c) => s + (c.qualityScore ?? 0), 0) / withQuality.length
+                      : null;
+                    const totalWords = withWords.reduce((s, c) => s + (c.wordCount ?? 0), 0);
+                    if (!withCost.length && !withQuality.length && !withWords.length) return null;
+                    return (
+                      <div className="mt-2 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-x-3 gap-y-1 px-0.5">
+                        {withCost.length > 0 && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                            <DollarSign className="w-2.5 h-2.5 text-amber-500/70" />
+                            <span className="tabular-nums">{totalCost.toFixed(3)}</span>
+                          </span>
+                        )}
+                        {avgQuality !== null && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                            <Star className="w-2.5 h-2.5 text-amber-500/70" />
+                            <span className="tabular-nums">{avgQuality.toFixed(0)}</span>
+                          </span>
+                        )}
+                        {withWords.length > 0 && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                            <FileText className="w-2.5 h-2.5 text-zinc-600" />
+                            <span className="tabular-nums">{totalWords.toLocaleString("en-US")}w</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -234,7 +269,11 @@ export default function ContentPage() {
 
       {/* Modals */}
       <CardDetailSheet card={selectedCard} onClose={() => setSelectedCard(null)} />
-      <AddArticleModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddArticleModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdd={(card) => setCards((prev) => [card, ...prev])}
+      />
     </div>
   );
 }

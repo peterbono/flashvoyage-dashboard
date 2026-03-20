@@ -19,7 +19,7 @@ import { AddTaskModal } from "@/components/kanban/AddTaskModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Flame, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskItem[]>(MOCK_TASKS);
@@ -88,9 +88,14 @@ export default function TasksPage() {
     setTasks((prev) => [task, ...prev]);
   }
 
+  const TODAY = "2026-03-20";
   const donePct = tasks.length
     ? Math.round((tasks.filter((t) => t.column === "done").length / tasks.length) * 100)
     : 0;
+  const urgentCount = tasks.filter((t) => t.priority === "urgent" && t.column !== "done").length;
+  const overdueCount = tasks.filter(
+    (t) => t.dueDate && t.dueDate < TODAY && t.column !== "done"
+  ).length;
 
   return (
     <div className="flex flex-col h-full bg-zinc-950">
@@ -103,8 +108,24 @@ export default function TasksPage() {
           <div className="w-20 bg-zinc-800 rounded-full h-1">
             <div className="bg-emerald-500 h-1 rounded-full transition-all" style={{ width: `${donePct}%` }} />
           </div>
-          <span className="text-[10px] text-zinc-500">{donePct}% done</span>
+          <span className="text-[10px] text-zinc-500 tabular-nums">
+            {tasks.filter((t) => t.column === "done").length}/{tasks.length} done
+          </span>
         </div>
+
+        {/* Velocity chips */}
+        {urgentCount > 0 && (
+          <div className="flex items-center gap-1 text-[10px] text-red-400 bg-red-950/30 border border-red-900/40 rounded-full px-2.5 py-1">
+            <Flame className="w-2.5 h-2.5" />
+            <span className="tabular-nums font-medium">{urgentCount} urgent</span>
+          </div>
+        )}
+        {overdueCount > 0 && (
+          <div className="flex items-center gap-1 text-[10px] text-orange-400 bg-orange-950/30 border border-orange-900/40 rounded-full px-2.5 py-1">
+            <AlertTriangle className="w-2.5 h-2.5" />
+            <span className="tabular-nums font-medium">{overdueCount} overdue</span>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
@@ -181,6 +202,47 @@ export default function TasksPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Column footer */}
+                  {colTasks.length > 0 && (() => {
+                    const colUrgent = colTasks.filter((t) => t.priority === "urgent").length;
+                    const colHigh = colTasks.filter((t) => t.priority === "high").length;
+                    const colOverdue = colTasks.filter((t) => t.dueDate && t.dueDate < TODAY).length;
+                    const colDone = col.id === "done";
+                    return (
+                      <div className="mt-2 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-x-3 gap-y-1 px-0.5">
+                        {colDone ? (
+                          <span className="flex items-center gap-0.5 text-[10px] text-emerald-500/80">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            <span className="tabular-nums">{colTasks.length} completed</span>
+                          </span>
+                        ) : (
+                          <>
+                            {colUrgent > 0 && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-red-400/80">
+                                <Flame className="w-2.5 h-2.5" />
+                                <span className="tabular-nums">{colUrgent}</span>
+                              </span>
+                            )}
+                            {colHigh > 0 && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400/80">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                <span className="tabular-nums">{colHigh} high</span>
+                              </span>
+                            )}
+                            {colOverdue > 0 && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-orange-400/80">
+                                <span className="tabular-nums">{colOverdue} overdue</span>
+                              </span>
+                            )}
+                            {colUrgent === 0 && colHigh === 0 && colOverdue === 0 && (
+                              <span className="text-[10px] text-zinc-700">{colTasks.length} tasks</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

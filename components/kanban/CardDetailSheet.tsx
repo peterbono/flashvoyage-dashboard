@@ -4,7 +4,7 @@ import { KanbanCard } from "./mockKanbanData";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, DollarSign, Globe, Calendar, FileText, Zap } from "lucide-react";
+import { Star, DollarSign, Globe, Calendar, FileText, Zap, ExternalLink } from "lucide-react";
 
 interface Props {
   card: KanbanCard | null;
@@ -24,9 +24,20 @@ export function CardDetailSheet({ card, onClose }: Props) {
         {card && (
           <>
             <SheetHeader className="pb-4">
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-2 mb-2 flex-wrap">
                 <Badge variant="outline" className={`text-[10px] ${SOURCE_COLORS[card.source]}`}>{card.source}</Badge>
                 <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">{card.language}</Badge>
+                {card.sourceUrl && (
+                  <a
+                    href={card.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-full px-2 py-0.5 transition-colors"
+                  >
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    Source
+                  </a>
+                )}
               </div>
               <SheetTitle className="text-sm font-semibold text-white leading-snug text-left">
                 {card.title}

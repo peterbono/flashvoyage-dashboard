@@ -140,6 +140,11 @@ export async function GET() {
       articles,
     });
   } catch (err) {
+    const isEnoent = err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT";
+    if (isEnoent) {
+      // Local articles DB not present — expected in non-local envs, fall back silently
+      return NextResponse.json({ source: "mock", articles: [] });
+    }
     console.error("[api/articles]", err);
     return NextResponse.json(
       { source: "error", error: String(err), articles: [] },

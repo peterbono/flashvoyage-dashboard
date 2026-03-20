@@ -8,6 +8,7 @@ import {
   GitBranch,
   DollarSign,
   TrendingUp,
+  TrendingDown,
   Zap,
   CheckSquare,
   Star,
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { MOCK_CARDS, COLUMNS } from "@/components/kanban/mockKanbanData";
 import { MOCK_TASKS } from "@/components/kanban/mockTaskData";
+import { DAILY_COSTS } from "@/components/costs/mockCostData";
+import { WeeklyThroughputChart } from "@/components/overview/WeeklyThroughputChart";
 import type { KanbanCard } from "@/components/kanban/mockKanbanData";
 
 const DATA_PATH =
@@ -98,6 +101,19 @@ const urgentTasks = MOCK_TASKS.filter(
   (t) => t.priority === "urgent" && t.column !== "done"
 );
 
+// 7-day period-over-period trends from DAILY_COSTS
+const N = 7;
+const curr7 = DAILY_COSTS.slice(-N);
+const prev7 = DAILY_COSTS.slice(-N * 2, -N);
+const curr7Cost = curr7.reduce((s, d) => s + d.cost, 0);
+const prev7Cost = prev7.reduce((s, d) => s + d.cost, 0);
+const curr7Arts = curr7.reduce((s, d) => s + d.articles, 0);
+const prev7Arts = prev7.reduce((s, d) => s + d.articles, 0);
+const costTrendPct = prev7Cost ? ((Math.abs(curr7Cost - prev7Cost) / prev7Cost) * 100).toFixed(1) : null;
+const costTrendUp = curr7Cost > prev7Cost;
+const artsTrendPct = prev7Arts ? ((Math.abs(curr7Arts - prev7Arts) / prev7Arts) * 100).toFixed(1) : null;
+const artsTrendUp = curr7Arts > prev7Arts;
+
 export default async function OverviewPage() {
   const real = await loadRealArticles();
 
@@ -136,6 +152,9 @@ export default async function OverviewPage() {
       color: "text-emerald-400",
       href: "/content",
       live: isLive,
+      trendPct: artsTrendPct,
+      trendUp: artsTrendUp,
+      positiveIsUp: true,
     },
     {
       label: "In Pipeline",
@@ -145,6 +164,9 @@ export default async function OverviewPage() {
       color: "text-blue-400",
       href: "/pipeline",
       live: false,
+      trendPct: null,
+      trendUp: false,
+      positiveIsUp: true,
     },
     {
       label: "Total LLM Cost",
@@ -154,6 +176,9 @@ export default async function OverviewPage() {
       color: "text-amber-400",
       href: "/costs",
       live: false,
+      trendPct: costTrendPct,
+      trendUp: costTrendUp,
+      positiveIsUp: false,
     },
     {
       label: "Avg Quality Score",
@@ -170,6 +195,9 @@ export default async function OverviewPage() {
           : "text-purple-400",
       href: "/content",
       live: false,
+      trendPct: null,
+      trendUp: false,
+      positiveIsUp: true,
     },
   ];
 
@@ -212,31 +240,45 @@ export default async function OverviewPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map(({ label, value, sub, icon: Icon, color, href, live }) => (
-          <Link key={label} href={href}>
-            <Card className="bg-zinc-900 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all duration-200 cursor-pointer h-full group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex items-center gap-1.5">
-                  <CardTitle className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
-                    {label}
-                  </CardTitle>
-                  {!live && (
-                    <span className="text-[9px] text-zinc-700 border border-zinc-800 rounded px-1">
-                      mock
-                    </span>
-                  )}
-                </div>
-                <div className={`p-1.5 rounded-md bg-zinc-800 group-hover:bg-zinc-700/80 transition-colors ${color}`}>
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white tracking-tight">{value}</div>
-                <p className="text-[11px] text-zinc-600 mt-1">{sub}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {stats.map(({ label, value, sub, icon: Icon, color, href, live, trendPct, trendUp, positiveIsUp }) => {
+          const isGood = trendPct ? trendUp === positiveIsUp : null;
+          const TrendIcon = trendUp ? TrendingUp : TrendingDown;
+          return (
+            <Link key={label} href={href}>
+              <Card className="bg-zinc-900 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all duration-200 cursor-pointer h-full group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CardTitle className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+                      {label}
+                    </CardTitle>
+                    {!live && (
+                      <span className="text-[9px] text-zinc-700 border border-zinc-800 rounded px-1">
+                        mock
+                      </span>
+                    )}
+                  </div>
+                  <div className={`p-1.5 rounded-md bg-zinc-800 group-hover:bg-zinc-700/80 transition-colors ${color}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white tracking-tight tabular-nums">{value}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[11px] text-zinc-600 flex-1">{sub}</p>
+                    {trendPct && (
+                      <span className={`flex items-center gap-0.5 text-[10px] font-medium shrink-0 ${
+                        isGood ? "text-emerald-400" : "text-rose-400"
+                      }`}>
+                        <TrendIcon className="w-3 h-3" />
+                        {trendPct}%
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -442,6 +484,32 @@ export default async function OverviewPage() {
           </Card>
         </div>
       </div>
+
+      {/* Weekly throughput chart */}
+      <Card className="bg-zinc-900 border-zinc-800/80">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              Weekly Throughput
+            </CardTitle>
+            <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+              <span>
+                <span className="tabular-nums font-medium text-amber-400">{curr7Arts}</span>
+                {" "}articles · last 7 days
+              </span>
+              {artsTrendPct && (
+                <span className={`flex items-center gap-0.5 font-medium ${artsTrendUp ? "text-emerald-400" : "text-rose-400"}`}>
+                  {artsTrendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {artsTrendPct}% vs prev week
+                </span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 -mx-2">
+          <WeeklyThroughputChart />
+        </CardContent>
+      </Card>
     </div>
   );
 }
