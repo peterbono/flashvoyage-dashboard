@@ -47,7 +47,7 @@ export function KanbanCardComponent({ card, onClick }: Props) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 cursor-pointer hover:border-zinc-600 transition-all duration-150 group select-none"
+      className="bg-zinc-900 border border-zinc-800/80 rounded-lg p-3 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/60 hover:shadow-lg hover:shadow-black/30 transition-all duration-200 group select-none"
     >
       {/* Title */}
       <p className="text-xs font-medium text-white leading-snug mb-2.5 line-clamp-2">
@@ -84,7 +84,7 @@ export function KanbanCardComponent({ card, onClick }: Props) {
           </span>
         )}
         {card.wordCount && (
-          <span>{card.wordCount.toLocaleString()}w</span>
+          <span>{card.wordCount.toLocaleString("en-US")}w</span>
         )}
         <span className="ml-auto">{card.date.slice(5)}</span>
       </div>

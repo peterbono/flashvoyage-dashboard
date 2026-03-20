@@ -95,11 +95,11 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 shrink-0 flex-wrap gap-y-2">
-        <h1 className="text-sm font-semibold text-white mr-1">Tasks</h1>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
+        <h1 className="text-sm font-semibold text-white tracking-tight mr-1">Tasks</h1>
 
         {/* Progress pill */}
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/80 rounded-full px-3 py-1">
           <div className="w-20 bg-zinc-800 rounded-full h-1">
             <div className="bg-emerald-500 h-1 rounded-full transition-all" style={{ width: `${donePct}%` }} />
           </div>
@@ -143,11 +143,16 @@ export default function TasksPage() {
               return (
                 <div key={col.id} id={col.id} className="flex flex-col w-64 shrink-0">
                   {/* Column header */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
+                  <div className="flex items-center gap-2 mb-3 px-0.5">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      col.id === "done"        ? "bg-emerald-500" :
+                      col.id === "in_progress" ? "bg-blue-500" :
+                      col.id === "testing"     ? "bg-violet-500" : "bg-zinc-600"
+                    }`} />
+                    <span className={`text-xs font-semibold tracking-wide ${col.color}`}>{col.label}</span>
                     <Badge
                       variant="outline"
-                      className="border-zinc-700 text-zinc-500 text-[10px] px-1.5 py-0 h-4"
+                      className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-[10px] px-1.5 py-0 h-4 ml-auto"
                     >
                       {colTasks.length}
                     </Badge>
@@ -168,7 +173,10 @@ export default function TasksPage() {
                       ))}
                     </SortableContext>
                     {colTasks.length === 0 && (
-                      <div className="border border-dashed border-zinc-800 rounded-lg h-14 flex items-center justify-center">
+                      <div className="border border-dashed border-zinc-800/60 rounded-xl h-20 flex flex-col items-center justify-center gap-1.5 mt-1">
+                        <div className="w-6 h-6 rounded-full bg-zinc-800/80 flex items-center justify-center">
+                          <Plus className="w-3 h-3 text-zinc-600" />
+                        </div>
                         <span className="text-[10px] text-zinc-700">Drop here</span>
                       </div>
                     )}
@@ -180,7 +188,7 @@ export default function TasksPage() {
 
           <DragOverlay>
             {activeTask && (
-              <div className="bg-zinc-900 border border-zinc-600 rounded-lg p-3 w-64 shadow-2xl opacity-90">
+              <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-3 w-64 shadow-2xl shadow-black/50 opacity-95 rotate-1">
                 <p className="text-xs font-medium text-white line-clamp-2">{activeTask.title}</p>
               </div>
             )}

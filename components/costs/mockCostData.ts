@@ -27,17 +27,28 @@ export interface StageCost {
   cost: number;
 }
 
-// Generate 30 days of daily cost data
-function daysAgo(n: number): string {
-  const d = new Date();
+// Seeded deterministic pseudo-random — avoids server/client hydration mismatch
+function seeded(seed: number) {
+  let s = seed;
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) | 0;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+// Generate 30 days of daily cost data with fixed dates relative to a stable anchor
+const ANCHOR_DATE = "2026-03-20"; // matches currentDate in project memory
+function daysBeforeAnchor(n: number): string {
+  const d = new Date(ANCHOR_DATE);
   d.setDate(d.getDate() - n);
   return d.toISOString().split("T")[0];
 }
 
+const rngDaily = seeded(42);
 export const DAILY_COSTS: DailyCost[] = Array.from({ length: 30 }, (_, i) => ({
-  date: daysAgo(29 - i),
-  cost: parseFloat((Math.random() * 0.8 + 0.05).toFixed(3)),
-  articles: Math.floor(Math.random() * 6 + 1),
+  date: daysBeforeAnchor(29 - i),
+  cost: parseFloat((rngDaily() * 0.8 + 0.05).toFixed(3)),
+  articles: Math.floor(rngDaily() * 6 + 1),
 }));
 
 export const MODEL_SHARES: ModelShare[] = [
@@ -82,18 +93,19 @@ const TITLES = [
 const MODELS = ["Claude Haiku 4.5", "Claude Haiku 4.5", "Claude Haiku 4.5", "GPT-4o", "GPT-4o-mini"];
 const STATUSES: ArticleRow["status"][] = ["published", "published", "published", "review", "failed"];
 
+const rngArticles = seeded(99);
 export const ARTICLES: ArticleRow[] = TITLES.map((title, i) => {
-  const cost = parseFloat((Math.random() * 0.18 + 0.04).toFixed(4));
-  const tokensIn = Math.floor(Math.random() * 6000 + 2000);
-  const tokensOut = Math.floor(Math.random() * 4000 + 1000);
+  const cost = parseFloat((rngArticles() * 0.18 + 0.04).toFixed(4));
+  const tokensIn = Math.floor(rngArticles() * 6000 + 2000);
+  const tokensOut = Math.floor(rngArticles() * 4000 + 1000);
   return {
     id: `art-${i + 1}`,
-    date: daysAgo(Math.floor(Math.random() * 30)),
+    date: daysBeforeAnchor(Math.floor(rngArticles() * 30)),
     title,
     totalCost: cost,
     tokensIn,
     tokensOut,
-    qualityScore: Math.floor(Math.random() * 20 + 75),
+    qualityScore: Math.floor(rngArticles() * 20 + 75),
     status: STATUSES[i % STATUSES.length],
     model: MODELS[i % MODELS.length],
   };

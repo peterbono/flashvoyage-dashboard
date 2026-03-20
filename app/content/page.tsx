@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -22,10 +22,31 @@ import { AddArticleModal } from "@/components/kanban/AddArticleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Wifi } from "lucide-react";
+
+// Non-published mock cards represent the pipeline stages we don't have real data for
+const PIPELINE_MOCK_CARDS = MOCK_CARDS.filter((c) => c.column !== "published");
 
 export default function ContentPage() {
-  const [cards, setCards] = useState<KanbanCard[]>(MOCK_CARDS);
+  const [cards, setCards] = useState<KanbanCard[]>(PIPELINE_MOCK_CARDS);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/articles")
+      .then((r) => r.json())
+      .then((data: { source: string; total: number; articles: KanbanCard[] }) => {
+        if (data.source === "real" && data.articles?.length) {
+          setCards([...PIPELINE_MOCK_CARDS, ...data.articles]);
+          setLiveCount(data.total);
+        }
+      })
+      .catch(() => {
+        // Fallback: show all mock data
+        setCards(MOCK_CARDS);
+        setLoadError(true);
+      });
+  }, []);
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
   const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -86,8 +107,19 @@ export default function ContentPage() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 shrink-0 flex-wrap gap-y-2">
-        <h1 className="text-sm font-semibold text-white mr-1">Content</h1>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
+        <h1 className="text-sm font-semibold text-white tracking-tight mr-1">Content</h1>
+        {liveCount !== null && (
+          <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-[10px]">
+            <Wifi className="w-2.5 h-2.5" />
+            {liveCount} live
+          </Badge>
+        )}
+        {loadError && (
+          <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-[10px]">
+            mock data
+          </Badge>
+        )}
 
         {/* Search */}
         <div className="relative">
@@ -149,9 +181,15 @@ export default function ContentPage() {
                   className="flex flex-col w-60 shrink-0"
                 >
                   {/* Column header */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
-                    <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px] px-1.5 py-0 h-4">
+                  <div className="flex items-center gap-2 mb-3 px-0.5">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      col.id === "published" ? "bg-emerald-500" :
+                      col.id === "review"    ? "bg-orange-500" :
+                      col.id === "generating"? "bg-amber-500" :
+                      col.id === "queued"    ? "bg-violet-500" : "bg-blue-500"
+                    }`} />
+                    <span className={`text-xs font-semibold tracking-wide ${col.color}`}>{col.label}</span>
+                    <Badge variant="outline" className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-[10px] px-1.5 py-0 h-4 ml-auto">
                       {colCards.length}
                     </Badge>
                   </div>
@@ -171,7 +209,10 @@ export default function ContentPage() {
                       ))}
                     </SortableContext>
                     {colCards.length === 0 && (
-                      <div className="border border-dashed border-zinc-800 rounded-lg h-16 flex items-center justify-center">
+                      <div className="border border-dashed border-zinc-800/60 rounded-xl h-24 flex flex-col items-center justify-center gap-1.5 mt-1">
+                        <div className="w-6 h-6 rounded-full bg-zinc-800/80 flex items-center justify-center">
+                          <Plus className="w-3 h-3 text-zinc-600" />
+                        </div>
                         <span className="text-[10px] text-zinc-700">Drop here</span>
                       </div>
                     )}
@@ -183,7 +224,7 @@ export default function ContentPage() {
 
           <DragOverlay>
             {activeCard && (
-              <div className="bg-zinc-900 border border-zinc-600 rounded-lg p-3 w-60 shadow-2xl opacity-90">
+              <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-3 w-60 shadow-2xl shadow-black/50 opacity-95 rotate-1">
                 <p className="text-xs font-medium text-white line-clamp-2">{activeCard.title}</p>
               </div>
             )}
