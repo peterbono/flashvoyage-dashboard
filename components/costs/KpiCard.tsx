@@ -35,7 +35,7 @@ export function KpiCard({
   return (
     <Card className="bg-zinc-900 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all duration-200 group overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+        <CardTitle className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
           {label}
         </CardTitle>
         <div className={`p-1.5 rounded-md bg-zinc-800 group-hover:bg-zinc-700/80 transition-colors ${iconColor}`}>
@@ -43,10 +43,10 @@ export function KpiCard({
         </div>
       </CardHeader>
       <CardContent className="pb-0">
-        <div className="text-2xl font-bold text-white tracking-tight">{value}</div>
+        <div className="text-3xl font-bold text-white tracking-tight">{value}</div>
         {trend && (
           <div
-            className={`flex items-center gap-1 text-[11px] mt-1 font-medium ${
+            className={`flex items-center gap-1 text-xs mt-1 font-medium ${
               isGood ? "text-emerald-400" : "text-rose-400"
             }`}
           >

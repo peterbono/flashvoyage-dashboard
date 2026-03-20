@@ -12,7 +12,8 @@ import {
   closestCenter,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { MOCK_TASKS, TASK_COLUMNS, TaskItem, TaskColumn } from "@/components/kanban/mockTaskData";
+import { TASK_COLUMNS, TaskItem, TaskColumn } from "@/components/kanban/mockTaskData";
+import { useAppStore } from "@/lib/store";
 import { TaskCardComponent } from "@/components/kanban/TaskCard";
 import { TaskDetailSheet } from "@/components/kanban/TaskDetailSheet";
 import { AddTaskModal } from "@/components/kanban/AddTaskModal";
@@ -22,7 +23,11 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Flame, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<TaskItem[]>(MOCK_TASKS);
+  const storeTaskItems = useAppStore((s) => s.taskItems);
+  const addTaskItem = useAppStore((s) => s.addTaskItem);
+  const updateTaskItem = useAppStore((s) => s.updateTaskItem);
+  const removeTaskItem = useAppStore((s) => s.removeTaskItem);
+  const [tasks, setTasks] = useState<TaskItem[]>(storeTaskItems);
   const [activeTask, setActiveTask] = useState<TaskItem | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -62,6 +67,7 @@ export default function TasksPage() {
       setTasks((prev) =>
         prev.map((t) => t.id === activeId ? { ...t, column: targetColumn.id } : t)
       );
+      updateTaskItem(activeId, { column: targetColumn.id });
       return;
     }
     const overTask = tasks.find((t) => t.id === overId);
@@ -71,6 +77,7 @@ export default function TasksPage() {
         setTasks((prev) =>
           prev.map((t) => t.id === activeId ? { ...t, column: overTask.column } : t)
         );
+        updateTaskItem(activeId, { column: overTask.column });
       }
     }
   }
@@ -78,14 +85,17 @@ export default function TasksPage() {
   function handleUpdate(id: string, updates: Partial<TaskItem>) {
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t));
     setSelectedTask((prev) => prev?.id === id ? { ...prev, ...updates } : prev);
+    updateTaskItem(id, updates);
   }
 
   function handleDelete(id: string) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    removeTaskItem(id);
   }
 
   function handleAdd(task: TaskItem) {
     setTasks((prev) => [task, ...prev]);
+    addTaskItem(task);
   }
 
   const TODAY = "2026-03-20";
@@ -108,20 +118,20 @@ export default function TasksPage() {
           <div className="w-20 bg-zinc-800 rounded-full h-1">
             <div className="bg-emerald-500 h-1 rounded-full transition-all" style={{ width: `${donePct}%` }} />
           </div>
-          <span className="text-[10px] text-zinc-500 tabular-nums">
+          <span className="text-xs text-zinc-500 tabular-nums">
             {tasks.filter((t) => t.column === "done").length}/{tasks.length} done
           </span>
         </div>
 
         {/* Velocity chips */}
         {urgentCount > 0 && (
-          <div className="flex items-center gap-1 text-[10px] text-red-400 bg-red-950/30 border border-red-900/40 rounded-full px-2.5 py-1">
+          <div className="flex items-center gap-1 text-xs text-red-400 bg-red-950/30 border border-red-900/40 rounded-full px-2.5 py-1">
             <Flame className="w-2.5 h-2.5" />
             <span className="tabular-nums font-medium">{urgentCount} urgent</span>
           </div>
         )}
         {overdueCount > 0 && (
-          <div className="flex items-center gap-1 text-[10px] text-orange-400 bg-orange-950/30 border border-orange-900/40 rounded-full px-2.5 py-1">
+          <div className="flex items-center gap-1 text-xs text-orange-400 bg-orange-950/30 border border-orange-900/40 rounded-full px-2.5 py-1">
             <AlertTriangle className="w-2.5 h-2.5" />
             <span className="tabular-nums font-medium">{overdueCount} overdue</span>
           </div>
@@ -168,12 +178,12 @@ export default function TasksPage() {
                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                       col.id === "done"        ? "bg-emerald-500" :
                       col.id === "in_progress" ? "bg-blue-500" :
-                      col.id === "testing"     ? "bg-violet-500" : "bg-zinc-600"
+                      col.id === "testing"     ? "bg-amber-500" : "bg-zinc-600"
                     }`} />
                     <span className={`text-xs font-semibold tracking-wide ${col.color}`}>{col.label}</span>
                     <Badge
                       variant="outline"
-                      className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-[10px] px-1.5 py-0 h-4 ml-auto"
+                      className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-xs px-1.5 py-0 h-4 ml-auto"
                     >
                       {colTasks.length}
                     </Badge>
@@ -198,7 +208,7 @@ export default function TasksPage() {
                         <div className="w-6 h-6 rounded-full bg-zinc-800/80 flex items-center justify-center">
                           <Plus className="w-3 h-3 text-zinc-600" />
                         </div>
-                        <span className="text-[10px] text-zinc-700">Drop here</span>
+                        <span className="text-xs text-zinc-700">Drop here</span>
                       </div>
                     )}
                   </div>
@@ -212,31 +222,31 @@ export default function TasksPage() {
                     return (
                       <div className="mt-2 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-x-3 gap-y-1 px-0.5">
                         {colDone ? (
-                          <span className="flex items-center gap-0.5 text-[10px] text-emerald-500/80">
+                          <span className="flex items-center gap-0.5 text-xs text-emerald-500/80">
                             <CheckCircle2 className="w-2.5 h-2.5" />
                             <span className="tabular-nums">{colTasks.length} completed</span>
                           </span>
                         ) : (
                           <>
                             {colUrgent > 0 && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-red-400/80">
+                              <span className="flex items-center gap-0.5 text-xs text-red-400/80">
                                 <Flame className="w-2.5 h-2.5" />
                                 <span className="tabular-nums">{colUrgent}</span>
                               </span>
                             )}
                             {colHigh > 0 && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400/80">
+                              <span className="flex items-center gap-0.5 text-xs text-amber-400/80">
                                 <AlertTriangle className="w-2.5 h-2.5" />
                                 <span className="tabular-nums">{colHigh} high</span>
                               </span>
                             )}
                             {colOverdue > 0 && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-orange-400/80">
+                              <span className="flex items-center gap-0.5 text-xs text-orange-400/80">
                                 <span className="tabular-nums">{colOverdue} overdue</span>
                               </span>
                             )}
                             {colUrgent === 0 && colHigh === 0 && colOverdue === 0 && (
-                              <span className="text-[10px] text-zinc-700">{colTasks.length} tasks</span>
+                              <span className="text-xs text-zinc-700">{colTasks.length} tasks</span>
                             )}
                           </>
                         )}

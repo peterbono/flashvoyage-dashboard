@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { PageTransition } from "@/components/layout/PageTransition";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,17 +32,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased h-screen`}
       >
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">
-            <PageTransition>{children}</PageTransition>
-          </main>
-          <CommandPalette />
-        </div>
+        {/*
+          ThemeProvider renders a wrapper <div class="dark"> based on Zustand state.
+          This avoids any <html> className mutation, keeping hydration clean.
+          Server default darkMode=true matches client initial render.
+        */}
+        <ThemeProvider>
+          <div className="flex h-full overflow-hidden bg-white dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100">
+            <Sidebar />
+            <main className="flex-1 overflow-auto bg-white dark:bg-[#0a0a0a]">
+              <PageTransition>{children}</PageTransition>
+            </main>
+            <CommandPalette />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

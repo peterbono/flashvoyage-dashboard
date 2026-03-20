@@ -40,9 +40,8 @@ export function TaskCardComponent({ task, onClick }: Props) {
       onClick={onClick}
       className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 cursor-pointer hover:border-zinc-600 transition-all duration-150 select-none"
     >
-      {/* Priority dot + title */}
-      <div className="flex items-start gap-2 mb-2.5">
-        <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${priority.dot}`} />
+      {/* Title */}
+      <div className="mb-2.5">
         <p className="text-xs font-medium text-white leading-snug line-clamp-2">{task.title}</p>
       </div>
 
@@ -53,7 +52,7 @@ export function TaskCardComponent({ task, onClick }: Props) {
             <Badge
               key={tag}
               variant="outline"
-              className="text-[9px] px-1.5 py-0 border-zinc-700 text-zinc-500 bg-zinc-800/30"
+              className="text-xs px-1.5 py-0 border-zinc-700 text-zinc-500 bg-zinc-800/30"
             >
               {tag}
             </Badge>
@@ -63,11 +62,11 @@ export function TaskCardComponent({ task, onClick }: Props) {
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-1">
-        <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${priority.color}`}>
+        <Badge variant="outline" className={`text-xs px-1.5 py-0 ${priority.color}`}>
           {priority.label}
         </Badge>
         {task.dueDate && (
-          <span className={`flex items-center gap-0.5 text-[10px] ${isOverdue ? "text-red-400" : "text-zinc-500"}`}>
+          <span className={`flex items-center gap-0.5 text-xs ${isOverdue ? "text-red-400" : "text-zinc-500"}`}>
             {isOverdue && <AlertCircle className="w-2.5 h-2.5" />}
             <Calendar className="w-2.5 h-2.5" />
             {task.dueDate.slice(5)}

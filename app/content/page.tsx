@@ -9,13 +9,11 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
+  useDroppable,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { MOCK_CARDS, COLUMNS, KanbanCard, KanbanColumn } from "@/components/kanban/mockKanbanData";
+import { COLUMNS, KanbanCard, KanbanColumn } from "@/components/kanban/mockKanbanData";
 import { KanbanCardComponent } from "@/components/kanban/KanbanCard";
 import { CardDetailSheet } from "@/components/kanban/CardDetailSheet";
 import { AddArticleModal } from "@/components/kanban/AddArticleModal";
@@ -23,29 +21,68 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Wifi, DollarSign, Star, FileText } from "lucide-react";
+import { useAppStore } from "@/lib/store";
 
-// Non-published mock cards represent the pipeline stages we don't have real data for
-const PIPELINE_MOCK_CARDS = MOCK_CARDS.filter((c) => c.column !== "published");
+// Droppable wrapper so dnd-kit recognises each column as a valid drop target
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 overflow-y-auto space-y-2 pr-0.5 rounded-lg transition-colors duration-150 ${
+        isOver ? "ring-1 ring-amber-500/40 bg-amber-500/5" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function ContentPage() {
-  const [cards, setCards] = useState<KanbanCard[]>(PIPELINE_MOCK_CARDS);
+  const storeCards = useAppStore((s) => s.kanbanCards);
+  const addKanbanCard = useAppStore((s) => s.addKanbanCard);
+  const updateKanbanCard = useAppStore((s) => s.updateKanbanCard);
+  // sourcedCards: real Reddit trending posts
+  const [sourcedCards, setSourcedCards] = useState<KanbanCard[]>([]);
+  // publishedCards: real WordPress articles
+  const [publishedCards, setPublishedCards] = useState<KanbanCard[]>([]);
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
 
+  // Fetch published articles from WordPress
   useEffect(() => {
     fetch("/api/articles")
       .then((r) => r.json())
       .then((data: { source: string; total: number; articles: KanbanCard[] }) => {
         if (data.source === "real" && data.articles?.length) {
-          setCards([...PIPELINE_MOCK_CARDS, ...data.articles]);
+          setPublishedCards(data.articles);
           setLiveCount(data.total);
         }
       })
-      .catch(() => {
-        // Fallback: show all mock data
-        setCards(MOCK_CARDS);
-        setLoadError(true);
-      });
+      .catch(() => setLoadError(true));
+  }, []);
+
+  // Fetch Reddit trending → sourced column
+  useEffect(() => {
+    fetch("/api/reddit/trending")
+      .then((r) => r.json())
+      .then((data: { source?: string; posts?: { id: string; title: string; score: number; url: string; subreddit: string }[] }) => {
+        if (data.posts?.length) {
+          const redditCards: KanbanCard[] = data.posts.map((p) => ({
+            id: `reddit-${p.id}`,
+            title: p.title,
+            column: "sourced" as const,
+            source: "Reddit" as const,
+            sourceUrl: p.url,
+            keyword: p.title.split(" ").slice(0, 4).join(" ").toLowerCase(),
+            date: new Date().toISOString().slice(0, 10),
+            language: "EN" as const,
+            destination: p.subreddit,
+          }));
+          setSourcedCards(redditCards);
+        }
+      })
+      .catch(() => { /* non-blocking */ });
   }, []);
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
   const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
@@ -57,13 +94,24 @@ export default function ContentPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
+  // All real cards: sourced (Reddit) + store (queued/generating/review set by user/pipeline) + published (WP)
+  const mergedCards = useMemo(() => {
+    const seen = new Set<string>();
+    const all = [...sourcedCards, ...storeCards, ...publishedCards];
+    return all.filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  }, [sourcedCards, storeCards, publishedCards]);
+
   const filteredCards = useMemo(() => {
-    return cards.filter((c) => {
+    return mergedCards.filter((c) => {
       const matchSearch = search === "" || c.title.toLowerCase().includes(search.toLowerCase());
       const matchSource = sourceFilter === "all" || c.source === sourceFilter;
       return matchSearch && matchSource;
     });
-  }, [cards, search, sourceFilter]);
+  }, [mergedCards, search, sourceFilter]);
 
   const cardsByColumn = useMemo(() => {
     const map: Record<KanbanColumn, KanbanCard[]> = {
@@ -74,7 +122,7 @@ export default function ContentPage() {
   }, [filteredCards]);
 
   function handleDragStart(event: DragStartEvent) {
-    const card = cards.find((c) => c.id === event.active.id);
+    const card = mergedCards.find((c) => c.id === event.active.id);
     setActiveCard(card ?? null);
   }
 
@@ -85,22 +133,29 @@ export default function ContentPage() {
 
     const activeId = active.id as string;
     const overId = over.id as string;
+    const draggedCard = mergedCards.find((c) => c.id === activeId);
+    if (!draggedCard) return;
 
-    // Check if dropped over a column droppable
-    const targetColumn = COLUMNS.find((col) => col.id === overId);
-    if (targetColumn) {
-      setCards((prev) =>
-        prev.map((c) => c.id === activeId ? { ...c, column: targetColumn.id } : c)
-      );
-      return;
-    }
+    // over could be: a column id (droppable) OR a card id (sortable within/across columns)
+    const isColumn = COLUMNS.some((col) => col.id === overId);
+    const newCol: KanbanColumn | undefined = isColumn
+      ? (overId as KanbanColumn)
+      : mergedCards.find((c) => c.id === overId)?.column;
 
-    // Dropped over another card — move to same column
-    const overCard = cards.find((c) => c.id === overId);
-    if (overCard && overCard.column !== cards.find((c) => c.id === activeId)?.column) {
-      setCards((prev) =>
-        prev.map((c) => c.id === activeId ? { ...c, column: overCard.column } : c)
-      );
+    if (!newCol || newCol === draggedCard.column) return;
+
+    const updatedCard = { ...draggedCard, column: newCol };
+
+    // If already in store: update it
+    if (storeCards.some((c) => c.id === activeId)) {
+      updateKanbanCard(activeId, { column: newCol });
+    } else {
+      // Move from sourced/published into store (now user-managed)
+      addKanbanCard(updatedCard);
+      // Remove from sourced if dragged away
+      if (sourcedCards.some((c) => c.id === activeId)) {
+        setSourcedCards((prev) => prev.filter((c) => c.id !== activeId));
+      }
     }
   }
 
@@ -110,13 +165,13 @@ export default function ContentPage() {
       <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
         <h1 className="text-sm font-semibold text-white tracking-tight mr-1">Content</h1>
         {liveCount !== null && (
-          <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-[10px]">
+          <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs">
             <Wifi className="w-2.5 h-2.5" />
             {liveCount} live
           </Badge>
         )}
         {loadError && (
-          <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-[10px]">
+          <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs">
             mock data
           </Badge>
         )}
@@ -140,7 +195,7 @@ export default function ContentPage() {
               variant="ghost"
               size="sm"
               onClick={() => setSourceFilter(s)}
-              className={`h-6 px-2 text-[11px] rounded-md transition-colors capitalize ${
+              className={`h-6 px-2 text-xs rounded-md transition-colors capitalize ${
                 sourceFilter === s
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-500 hover:text-white hover:bg-zinc-800"
@@ -167,7 +222,13 @@ export default function ContentPage() {
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={(args) => {
+            // Prefer column droppables first (pointer inside column area)
+            const pw = pointerWithin(args);
+            if (pw.length > 0) return pw;
+            // Fallback for edge cases (dragging outside column bounds)
+            return rectIntersection(args);
+          }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -189,17 +250,13 @@ export default function ContentPage() {
                       col.id === "queued"    ? "bg-violet-500" : "bg-blue-500"
                     }`} />
                     <span className={`text-xs font-semibold tracking-wide ${col.color}`}>{col.label}</span>
-                    <Badge variant="outline" className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-[10px] px-1.5 py-0 h-4 ml-auto">
+                    <Badge variant="outline" className="border-zinc-800 bg-zinc-800/50 text-zinc-500 text-xs px-1.5 py-0 h-4 ml-auto">
                       {colCards.length}
                     </Badge>
                   </div>
 
-                  {/* Cards */}
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
-                    <SortableContext
-                      items={colCards.map((c) => c.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
+                  {/* Cards — DroppableColumn registers col.id as a valid dnd-kit drop zone */}
+                  <DroppableColumn id={col.id}>
                       {colCards.map((card) => (
                         <KanbanCardComponent
                           key={card.id}
@@ -207,16 +264,16 @@ export default function ContentPage() {
                           onClick={() => setSelectedCard(card)}
                         />
                       ))}
-                    </SortableContext>
                     {colCards.length === 0 && (
                       <div className="border border-dashed border-zinc-800/60 rounded-xl h-24 flex flex-col items-center justify-center gap-1.5 mt-1">
                         <div className="w-6 h-6 rounded-full bg-zinc-800/80 flex items-center justify-center">
                           <Plus className="w-3 h-3 text-zinc-600" />
                         </div>
-                        <span className="text-[10px] text-zinc-700">Drop here</span>
+                        <span className="text-xs text-zinc-700">Drop here</span>
                       </div>
                     )}
-                  </div>
+                  </DroppableColumn>
+
 
                   {/* Column footer aggregates */}
                   {colCards.length > 0 && (() => {
@@ -232,19 +289,19 @@ export default function ContentPage() {
                     return (
                       <div className="mt-2 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-x-3 gap-y-1 px-0.5">
                         {withCost.length > 0 && (
-                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                          <span className="flex items-center gap-0.5 text-xs text-zinc-500">
                             <DollarSign className="w-2.5 h-2.5 text-amber-500/70" />
                             <span className="tabular-nums">{totalCost.toFixed(3)}</span>
                           </span>
                         )}
                         {avgQuality !== null && (
-                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                          <span className="flex items-center gap-0.5 text-xs text-zinc-500">
                             <Star className="w-2.5 h-2.5 text-amber-500/70" />
                             <span className="tabular-nums">{avgQuality.toFixed(0)}</span>
                           </span>
                         )}
                         {withWords.length > 0 && (
-                          <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                          <span className="flex items-center gap-0.5 text-xs text-zinc-500">
                             <FileText className="w-2.5 h-2.5 text-zinc-600" />
                             <span className="tabular-nums">{totalWords.toLocaleString("en-US")}w</span>
                           </span>
@@ -272,7 +329,7 @@ export default function ContentPage() {
       <AddArticleModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onAdd={(card) => setCards((prev) => [card, ...prev])}
+        onAdd={(card) => addKanbanCard(card)}
       />
     </div>
   );

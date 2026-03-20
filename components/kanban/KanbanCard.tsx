@@ -1,6 +1,6 @@
 "use client";
 
-import { useSortable } from "@dnd-kit/sortable";
+import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { KanbanCard as KanbanCardType, SourceType } from "./mockKanbanData";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,12 @@ export function KanbanCardComponent({ card, onClick }: Props) {
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: card.id });
+  } = useDraggable({ id: card.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   return (
@@ -56,21 +54,21 @@ export function KanbanCardComponent({ card, onClick }: Props) {
 
       {/* Badges row */}
       <div className="flex flex-wrap gap-1 mb-2">
-        <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${SOURCE_COLORS[card.source]}`}>
+        <Badge variant="outline" className={`text-xs px-1.5 py-0 ${SOURCE_COLORS[card.source]}`}>
           {card.source}
         </Badge>
-        <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${LANG_COLORS[card.language]}`}>
+        <Badge variant="outline" className={`text-xs px-1.5 py-0 ${LANG_COLORS[card.language]}`}>
           {card.language}
         </Badge>
       </div>
 
       {/* Keyword */}
-      <p className="text-[10px] text-zinc-500 truncate mb-2.5">
+      <p className="text-xs text-zinc-500 truncate mb-2.5">
         🔑 {card.keyword}
       </p>
 
       {/* Stats row */}
-      <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+      <div className="flex items-center gap-3 text-xs text-zinc-500">
         {card.qualityScore !== undefined && (
           <span className={`flex items-center gap-0.5 font-medium ${card.qualityScore >= 85 ? "text-emerald-400" : card.qualityScore >= 75 ? "text-amber-400" : "text-red-400"}`}>
             <Star className="w-2.5 h-2.5" />

@@ -7,14 +7,14 @@ import { motion } from "framer-motion";
 import {
   Search, Database, TrendingUp, BookOpen, GitBranch, GitFork,
   Sparkles, Link, BarChart2, FileCheck, ShieldCheck, Globe,
-  Hash, Rss, PenLine, Zap,
+  Hash, Rss, PenLine, Zap, Wrench,
   Clock, CheckCircle2, XCircle, SkipForward, Loader2,
 } from "lucide-react";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Search, Database, TrendingUp, BookOpen, GitBranch, GitFork,
   Sparkles, Link, BarChart2, FileCheck, ShieldCheck, Globe,
-  Hash, Rss, PenLine, Zap,
+  Hash, Rss, PenLine, Zap, Wrench,
 };
 
 const STATUS_CONFIG: Record<StageStatus, { label: string; color: string; borderColor: string; bg: string }> = {
@@ -103,11 +103,11 @@ export function PipelineNode({ data, selected }: NodeProps) {
 
           {/* Branch labels */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-amber-400 font-medium">↗ Evergreen</span>
               <span className="text-zinc-600">1800w · Sonnet</span>
             </div>
-            <div className="flex items-center justify-between text-[10px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-cyan-400 font-medium">↘ News</span>
               <span className="text-zinc-600">800w · Haiku</span>
             </div>
@@ -161,7 +161,7 @@ export function PipelineNode({ data, selected }: NodeProps) {
           </div>
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            <span className="text-[10px] text-emerald-400 font-medium">WordPress · REST API</span>
+            <span className="text-xs text-emerald-400 font-medium">WordPress · REST API</span>
           </div>
         </div>
       </motion.div>
@@ -218,13 +218,21 @@ export function PipelineNode({ data, selected }: NodeProps) {
         {/* Status row */}
         <div className="flex items-center gap-1.5 mb-2">
           <StatusIcon status={stage.status} />
-          <span className={`text-[10px] font-medium ${cfg.color}`}>{cfg.label}</span>
+          <span className={`text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
         </div>
 
         {/* Stats */}
-        <div className="flex items-center justify-between text-[10px] text-zinc-500">
-          <span>{stage.duration.toFixed(1)}s</span>
-          {stage.cost > 0 && <span className="text-zinc-600">${stage.cost.toFixed(3)}</span>}
+        <div className="flex items-center justify-between text-xs text-zinc-500">
+          {(stage as unknown as { durationMs?: number }).durationMs !== undefined ? (
+            <span>
+              {(stage as unknown as { durationMs: number }).durationMs >= 1000
+                ? `${((stage as unknown as { durationMs: number }).durationMs / 1000).toFixed(1)}s`
+                : `${(stage as unknown as { durationMs: number }).durationMs}ms`}
+            </span>
+          ) : (
+            <span>{(stage.duration ?? 0).toFixed(1)}s</span>
+          )}
+          {(stage.cost ?? 0) > 0 && <span className="text-zinc-600">${stage.cost!.toFixed(3)}</span>}
           {stage.qualityScore !== undefined && (
             <span className="text-amber-500 font-medium">Q{stage.qualityScore}</span>
           )}

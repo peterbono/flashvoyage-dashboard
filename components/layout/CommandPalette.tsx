@@ -12,8 +12,9 @@ import {
   Globe,
   Star,
   Zap,
+  ExternalLink,
 } from "lucide-react";
-import { MOCK_CARDS } from "@/components/kanban/mockKanbanData";
+import { useAppStore } from "@/lib/store";
 
 const NAV_ITEMS = [
   { label: "Overview",  href: "/",         icon: LayoutDashboard, desc: "Dashboard & KPIs" },
@@ -23,11 +24,11 @@ const NAV_ITEMS = [
   { label: "Tasks",     href: "/tasks",     icon: CheckSquare,     desc: "Task management" },
 ];
 
-const RECENT = MOCK_CARDS.filter((c) => c.column === "published").slice(0, 4);
-
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const kanbanCards = useAppStore((s) => s.kanbanCards);
+  const RECENT = kanbanCards.filter((c) => c.column === "published").slice(0, 4);
 
   const toggle = useCallback(() => setOpen((o) => !o), []);
 
@@ -71,7 +72,7 @@ export function CommandPalette() {
               placeholder="Search pages, articles..."
               className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
             />
-            <kbd className="text-[10px] text-zinc-600 border border-zinc-700 rounded px-1.5 py-0.5">esc</kbd>
+            <kbd className="text-xs text-zinc-600 border border-zinc-700 rounded px-1.5 py-0.5">esc</kbd>
           </div>
 
           <Command.List className="max-h-80 overflow-y-auto py-2">
@@ -81,7 +82,7 @@ export function CommandPalette() {
 
             {/* Navigation */}
             <Command.Group>
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">
+              <div className="px-3 py-1.5 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
                 Navigation
               </div>
               {NAV_ITEMS.map((item) => (
@@ -97,7 +98,7 @@ export function CommandPalette() {
                   <item.icon className="w-4 h-4 text-zinc-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium">{item.label}</div>
-                    <div className="text-[10px] text-zinc-600">{item.desc}</div>
+                    <div className="text-xs text-zinc-600">{item.desc}</div>
                   </div>
                 </Command.Item>
               ))}
@@ -106,7 +107,7 @@ export function CommandPalette() {
             {/* Recent articles */}
             {RECENT.length > 0 && (
               <Command.Group>
-                <div className="px-3 py-1.5 mt-1 text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">
+                <div className="px-3 py-1.5 mt-1 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
                   Recent Articles
                 </div>
                 {RECENT.map((card) => (
@@ -123,18 +124,30 @@ export function CommandPalette() {
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">{card.title}</div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-zinc-600 flex items-center gap-0.5">
+                        <span className="text-xs text-zinc-600 flex items-center gap-0.5">
                           <Globe className="w-2.5 h-2.5" />
                           {card.destination}
                         </span>
                         {card.qualityScore && (
-                          <span className="text-[10px] text-emerald-500 flex items-center gap-0.5">
+                          <span className="text-xs text-emerald-500 flex items-center gap-0.5">
                             <Star className="w-2.5 h-2.5" />
                             {card.qualityScore}
                           </span>
                         )}
                       </div>
                     </div>
+                    {card.sourceUrl && (
+                      <a
+                        href={card.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-zinc-600 hover:text-zinc-300 transition-colors"
+                        title="Open article"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                   </Command.Item>
                 ))}
               </Command.Group>
@@ -142,7 +155,7 @@ export function CommandPalette() {
           </Command.List>
 
           {/* Footer */}
-          <div className="flex items-center gap-3 px-4 py-2 border-t border-zinc-800 text-[10px] text-zinc-600">
+          <div className="flex items-center gap-3 px-4 py-2 border-t border-zinc-800 text-xs text-zinc-600">
             <span><kbd className="border border-zinc-700 rounded px-1">↑↓</kbd> navigate</span>
             <span><kbd className="border border-zinc-700 rounded px-1">↵</kbd> select</span>
             <span><kbd className="border border-zinc-700 rounded px-1">esc</kbd> close</span>

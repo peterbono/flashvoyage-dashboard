@@ -54,7 +54,7 @@ export function AddArticleModal({ open, onClose, onAdd }: Props) {
       <DialogContent className="bg-zinc-950 border-zinc-800 text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold">Add Article</DialogTitle>
-          <p className="text-[11px] text-zinc-600 mt-0.5">
+          <p className="text-xs text-zinc-600 mt-0.5">
             Queue it for later or trigger a pipeline run immediately.
           </p>
         </DialogHeader>

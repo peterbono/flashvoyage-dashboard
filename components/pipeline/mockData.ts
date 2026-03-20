@@ -18,6 +18,7 @@ export interface PipelineStageData {
   variant?: NodeVariant;
   track?: PipelineTrack;
   dimmed?: boolean;
+  outputData?: Record<string, unknown>;
 }
 
 export const ALL_PIPELINE_STAGES: PipelineStageData[] = [
