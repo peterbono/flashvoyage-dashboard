@@ -193,6 +193,101 @@ export const REAL_PIPELINE_NODES: RealPipelineStageData[] = [
     color: "text-fuchsia-400",
     variant: "publish",
   },
+
+  // ── SOCIAL DISTRIBUTION PIPELINE (3rd row) ──────────────────────────────
+  {
+    id: "social-carousel",
+    name: "IG Carousel",
+    description:
+      "Generates and publishes an Instagram carousel post from an article (4 slides: hook, info, budget, CTA).",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Image",
+    color: "text-pink-400",
+  },
+  {
+    id: "social-fb",
+    name: "FB Post",
+    description:
+      "Publishes photo to Facebook Page with article link in first comment (preserves organic reach).",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Facebook",
+    color: "text-blue-500",
+    variant: "publish",
+  },
+  {
+    id: "social-threads",
+    name: "Threads",
+    description:
+      "Posts caption + image to Threads (text truncated to 500 chars).",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "AtSign",
+    color: "text-zinc-300",
+    variant: "publish",
+  },
+  {
+    id: "social-story",
+    name: "Auto-Story",
+    description:
+      "Publishes Instagram Story with clickable link sticker pointing to the flashvoyage.com article.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Smartphone",
+    color: "text-amber-400",
+    variant: "publish",
+  },
+
+  // ── INTELLIGENCE PIPELINE (4th row) ──────────────────────────────────────
+  {
+    id: "intel-trends",
+    name: "Google Trends",
+    description:
+      "Scans Google Trends for FR travel rising queries. Identifies trending destinations and content gaps.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "TrendingUp",
+    color: "text-green-400",
+  },
+  {
+    id: "intel-analytics",
+    name: "GA4 + GSC",
+    description:
+      "Fetches GA4 traffic data + Google Search Console keyword positions. Computes article scores.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "BarChart2",
+    color: "text-cyan-400",
+  },
+  {
+    id: "intel-scorer",
+    name: "Scorer",
+    description:
+      "Scores all articles on 6 dimensions. Generates performance weights for the reel scheduler.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Calculator",
+    color: "text-yellow-400",
+  },
+  {
+    id: "intel-scheduler",
+    name: "Smart Scheduler",
+    description:
+      "Decides what to publish next based on trends, performance, breaking news, and content dedup.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Brain",
+    color: "text-purple-400",
+  },
 ];
 
 // Ordered viz-bridge stage IDs (for sequencing — article pipeline)
@@ -212,6 +307,22 @@ export const REEL_STAGE_IDS = [
   "reel-generator",
   "reel-publisher",
   "reel-cross-publisher",
+] as const;
+
+// Social distribution pipeline stage IDs
+export const SOCIAL_STAGE_IDS = [
+  "social-carousel",
+  "social-fb",
+  "social-threads",
+  "social-story",
+] as const;
+
+// Intelligence pipeline stage IDs
+export const INTEL_STAGE_IDS = [
+  "intel-trends",
+  "intel-analytics",
+  "intel-scorer",
+  "intel-scheduler",
 ] as const;
 
 export type VizBridgeStageId = (typeof VIZ_BRIDGE_STAGE_IDS)[number];
@@ -284,11 +395,21 @@ export const REAL_POSITIONS: Record<string, { x: number; y: number }> = {
   "post-processing": { x: 1400, y: 130 },
   "marie":           { x: 1680, y: 130 },
   "publisher":       { x: 1960, y: 130 },
-  // Reel pipeline stages (bottom row, y offset +220)
+  // Reel pipeline stages (row 2)
   "reel-scheduler":       { x: 280,  y: 420 },
   "reel-generator":       { x: 660,  y: 420 },
   "reel-publisher":       { x: 1040, y: 420 },
   "reel-cross-publisher": { x: 1420, y: 420 },
+  // Social distribution pipeline (row 3)
+  "social-carousel":      { x: 280,  y: 700 },
+  "social-fb":            { x: 660,  y: 700 },
+  "social-threads":       { x: 1040, y: 700 },
+  "social-story":         { x: 1420, y: 700 },
+  // Intelligence pipeline (row 4)
+  "intel-trends":         { x: 280,  y: 980 },
+  "intel-analytics":      { x: 660,  y: 980 },
+  "intel-scorer":         { x: 1040, y: 980 },
+  "intel-scheduler":      { x: 1420, y: 980 },
 };
 
 // ── Map node IDs to GitHub workflow files ─────────────────────────────────────
@@ -307,4 +428,14 @@ export const NODE_TO_WORKFLOW: Record<string, string> = {
   "reel-generator":       "publish-reels",
   "reel-publisher":       "publish-reels",
   "reel-cross-publisher": "publish-reels",
+  // Social distribution nodes map to publish-social-posts.yml
+  "social-carousel":      "publish-social-posts",
+  "social-fb":            "publish-social-posts",
+  "social-threads":       "publish-social-posts",
+  "social-story":         "publish-social-posts",
+  // Intelligence nodes map to content-intelligence.yml and daily-analytics.yml
+  "intel-trends":         "daily-analytics",
+  "intel-analytics":      "daily-analytics",
+  "intel-scorer":         "content-intelligence",
+  "intel-scheduler":      "publish-reels",
 };

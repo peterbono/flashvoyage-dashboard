@@ -23,6 +23,8 @@ import {
   REAL_POSITIONS,
   VIZ_BRIDGE_STAGE_IDS,
   REEL_STAGE_IDS,
+  SOCIAL_STAGE_IDS,
+  INTEL_STAGE_IDS,
   NODE_TO_WORKFLOW,
   VizRun,
   deriveNodeStatuses,
@@ -108,6 +110,30 @@ function buildRealGraph(): { nodes: Node[]; edges: Edge[] } {
         animated: true,
         style: { stroke: FUCHSIA, strokeWidth: 2 },
         markerEnd: { type: MarkerType.ArrowClosed, color: FUCHSIA, width: 14, height: 14 },
+      };
+    }),
+    // Social distribution pipeline (linear, pink)
+    ...SOCIAL_STAGE_IDS.slice(0, -1).map((id, i) => {
+      const nextId = SOCIAL_STAGE_IDS[i + 1];
+      return {
+        id: `e-${id}-${nextId}`,
+        source: id,
+        target: nextId,
+        animated: true,
+        style: { stroke: "#ec4899", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#ec4899", width: 14, height: 14 },
+      };
+    }),
+    // Intelligence pipeline (linear, green)
+    ...INTEL_STAGE_IDS.slice(0, -1).map((id, i) => {
+      const nextId = INTEL_STAGE_IDS[i + 1];
+      return {
+        id: `e-${id}-${nextId}`,
+        source: id,
+        target: nextId,
+        animated: true,
+        style: { stroke: "#22c55e", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e", width: 14, height: 14 },
       };
     }),
   ];
@@ -744,6 +770,14 @@ export default function PipelineVisualizer() {
               <div className="flex items-center gap-1.5 text-xs text-fuchsia-400/80 bg-fuchsia-950/20 rounded px-2 py-1">
                 <Github className="w-3 h-3" />
                 Reel pipeline — 3x/day cron
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-pink-400/80 bg-pink-950/20 rounded px-2 py-1">
+                <Github className="w-3 h-3" />
+                Social distribution — IG + FB + Threads + Story
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-green-400/80 bg-green-950/20 rounded px-2 py-1">
+                <Github className="w-3 h-3" />
+                Intelligence — Trends + Analytics + Scoring
               </div>
             </div>
           </Panel>

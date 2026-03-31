@@ -31,6 +31,9 @@ const ALLOWED_PATHS = new Set([
   "social-distributor/data/tokens.json",
   "social-distributor/reels/data/performance-weights.json",
   "social-distributor/data/ab-tests.json",
+  "health-report.json",
+  "social-distributor/reels/data/trend-priorities.json",
+  "social-distributor/reels/data/content-history.json",
 ]);
 
 export async function GET(
@@ -62,9 +65,20 @@ export async function GET(
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {
+    const errStr = String(err);
+    // If file doesn't exist yet in the repo, return empty data (not 500)
+    if (errStr.includes("404") || errStr.includes("Not Found")) {
+      const emptyData = relativePath.endsWith(".jsonl") ? [] : null;
+      return NextResponse.json({
+        data: emptyData,
+        path: relativePath.startsWith("social-distributor/") ? relativePath : `data/${relativePath}`,
+        notFound: true,
+        fetchedAt: new Date().toISOString(),
+      });
+    }
     console.error("[api/data/[...path]]", err);
     return NextResponse.json(
-      { error: String(err), fetchedAt: new Date().toISOString() },
+      { error: errStr, fetchedAt: new Date().toISOString() },
       { status: 500 }
     );
   }

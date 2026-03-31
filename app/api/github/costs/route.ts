@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const RAW_URL =
-  "https://raw.githubusercontent.com/peterbono/flashvoyage-ultra-content/refactor-v2/data/cost-history.jsonl";
+  "https://raw.githubusercontent.com/peterbono/flashvoyage-ultra-content/main/data/cost-history.jsonl";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
