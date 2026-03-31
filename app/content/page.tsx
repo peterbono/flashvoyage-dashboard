@@ -126,19 +126,48 @@ export default function ContentPage() {
     [executorLog]
   );
 
+  // ── Extract arrays from wrapped API responses ──
+  // API returns {data: {timestamp, queue: [...]}} — we need the inner array
+  const unwrap = <T,>(raw: unknown, ...keys: string[]): T[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const obj = raw as Record<string, unknown>;
+    for (const key of keys) {
+      const val = obj[key];
+      if (Array.isArray(val)) return val as T[];
+    }
+    // Maybe it's already an array
+    if (Array.isArray(raw)) return raw as T[];
+    return [];
+  };
+
+  const roiItems = useMemo(() => unwrap<ROIQueueItem>(roiQueue.data?.data, 'queue', 'items'), [roiQueue.data]);
+  const gapItems = useMemo(() => unwrap<ContentGap>(contentGaps.data?.data, 'gaps', 'items'), [contentGaps.data]);
+  const seasonalItems = useMemo(() => unwrap<SeasonalItem>(seasonalForecast.data?.data, 'forecasts', 'destinations', 'items'), [seasonalForecast.data]);
+  const scoreItems = useMemo(() => unwrap<ArticleScore>(articleScores.data?.data, 'scores', 'articles', 'items'), [articleScores.data]);
+  const competitorItems = useMemo(() => unwrap<CompetitorArticle>(competitorReport.data?.data, 'newArticles', 'articles', 'items'), [competitorReport.data]);
+  const executorItems = useMemo(() => unwrap<ExecutorLogEntry>(executorLog.data?.data, 'entries', 'log', 'items'), [executorLog.data]);
+
   // Compute lifecycle distribution from article scores as fallback
   const lifecycleData = useMemo(() => {
-    if (lifecycleStates.data?.data) return lifecycleStates.data.data;
-    if (!articleScores.data?.data) return {};
+    const raw = lifecycleStates.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const obj = raw as Record<string, unknown>;
+      if (obj.stateCounts && typeof obj.stateCounts === 'object') return obj.stateCounts as Record<string, number>;
+      // Try to use it directly if it looks like {NEW: 5, GROWING: 3, ...}
+      const keys = Object.keys(obj);
+      if (keys.some(k => ['NEW', 'GROWING', 'PEAK', 'DECLINING', 'EVERGREEN', 'DEAD'].includes(k))) return obj as Record<string, number>;
+    }
+    if (scoreItems.length === 0) return {};
     const dist: Record<string, number> = {};
-    for (const a of articleScores.data.data) {
-      dist[a.lifecycle] = (dist[a.lifecycle] || 0) + 1;
+    for (const a of scoreItems) {
+      const lc = (a as unknown as Record<string, unknown>).lifecycle as string || 'UNKNOWN';
+      dist[lc] = (dist[lc] || 0) + 1;
     }
     return dist;
-  }, [lifecycleStates.data, articleScores.data]);
+  }, [lifecycleStates.data, scoreItems]);
 
   // Count articles with intelligence data
-  const articlesCount = articleScores.data?.data?.length ?? 0;
+  const articlesCount = scoreItems.length;
   const hasIntelligenceData =
     !roiQueue.error || !contentGaps.error || !articleScores.error;
 
@@ -214,7 +243,7 @@ export default function ContentPage() {
 
           {/* ROI Queue */}
           <ROIQueueTable
-            items={roiQueue.data?.data ?? []}
+            items={roiItems}
             loading={roiQueue.loading}
             error={roiQueue.error}
           />
@@ -222,12 +251,12 @@ export default function ContentPage() {
           {/* Content Gaps + Seasonal side by side on large screens */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ContentGapsList
-              items={contentGaps.data?.data ?? []}
+              items={gapItems}
               loading={contentGaps.loading}
               error={contentGaps.error}
             />
             <SeasonalAlerts
-              items={seasonalForecast.data?.data ?? []}
+              items={seasonalItems}
               loading={seasonalForecast.loading}
               error={seasonalForecast.error}
             />
@@ -245,7 +274,7 @@ export default function ContentPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <LifecycleDonut data={lifecycleData} />
             <CompetitorMoves
-              items={competitorReport.data?.data ?? []}
+              items={competitorItems}
               loading={competitorReport.loading}
               error={competitorReport.error}
             />
@@ -253,7 +282,7 @@ export default function ContentPage() {
 
           {/* Article score table (full width) */}
           <ArticleScoreTable
-            articles={articleScores.data?.data ?? []}
+            articles={scoreItems}
             loading={articleScores.loading}
             error={articleScores.error}
           />
@@ -267,7 +296,7 @@ export default function ContentPage() {
           className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4"
         >
           <AutoExecutorLog
-            entries={executorLog.data?.data ?? []}
+            entries={executorItems}
             loading={executorLog.loading}
             error={executorLog.error}
             onApproveAll={handleApproveAll}
