@@ -289,7 +289,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
                       <TableCell className="text-right">
                         <span className="text-xs font-mono text-zinc-400 tabular-nums">
                           {article.traffic7d >= 1000
-                            ? `${(article.traffic7d / 1000).toFixed(1)}k`
+                            ? `${((article.traffic7d ?? 0) / 1000).toFixed(1)}k`
                             : article.traffic7d}
                         </span>
                       </TableCell>

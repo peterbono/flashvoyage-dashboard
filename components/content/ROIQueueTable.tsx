@@ -14,14 +14,20 @@ import {
 import { Loader2, Rocket, ArrowUpDown } from "lucide-react";
 
 export interface ROIQueueItem {
-  id: string;
-  title: string;
+  id?: string;
+  title?: string;
   topic?: string;
-  type: "new" | "update" | "enrich";
-  priority: "urgent" | "high" | "medium" | "low";
-  expectedROI: number;
+  action?: string;
+  type?: "new" | "update" | "enrich" | string;
+  priority?: "urgent" | "high" | "medium" | "low" | string;
+  priorityScore?: number;
+  expectedROI?: number;
+  roi?: { expectedRoi?: number; projectedMonthlyTraffic?: number; productionCost?: number };
   keywords?: string[];
   destination?: string;
+  rank?: number;
+  context?: string;
+  [key: string]: unknown;
 }
 
 interface Props {
@@ -52,13 +58,13 @@ export function ROIQueueTable({ items, loading, error }: Props) {
   const [sortBy, setSortBy] = useState<"roi" | "priority">("roi");
 
   const sorted = [...items].sort((a, b) => {
-    if (sortBy === "roi") return b.expectedROI - a.expectedROI;
-    const pOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-    return (pOrder[a.priority] ?? 3) - (pOrder[b.priority] ?? 3);
+    if (sortBy === "roi") return (b.expectedROI ?? b.roi?.expectedRoi ?? 0) - (a.expectedROI ?? a.roi?.expectedRoi ?? 0);
+    const pOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+    return (pOrder[a.priority || "low"] ?? 3) - (pOrder[b.priority || "low"] ?? 3);
   });
 
   async function handleProduce(item: ROIQueueItem) {
-    setProducingId(item.id);
+    setProducingId(item.id || null);
     try {
       await fetch("/api/workflows/dispatch", {
         method: "POST",
@@ -139,7 +145,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
               <TableCell>
                 <Badge
                   variant="outline"
-                  className={`text-[10px] px-1.5 py-0 h-4 ${PRIORITY_STYLES[item.priority] || ""}`}
+                  className={`text-[10px] px-1.5 py-0 h-4 ${PRIORITY_STYLES[item.priority || "low"] || ""}`}
                 >
                   {item.priority === "urgent" ? "P1" : item.priority === "high" ? "P2" : item.priority === "medium" ? "P3" : "Low"}
                 </Badge>
@@ -155,14 +161,14 @@ export function ROIQueueTable({ items, loading, error }: Props) {
               <TableCell>
                 <Badge
                   variant="outline"
-                  className={`text-[10px] px-1.5 py-0 h-4 ${TYPE_STYLES[item.type] || ""}`}
+                  className={`text-[10px] px-1.5 py-0 h-4 ${TYPE_STYLES[item.type || item.action || "new"] || ""}`}
                 >
                   {item.type}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
                 <span className="text-xs font-mono text-amber-400 tabular-nums">
-                  {item.expectedROI.toFixed(1)}
+                  {(item.expectedROI ?? item.roi?.expectedRoi ?? 0).toFixed(1)}
                 </span>
               </TableCell>
               <TableCell className="text-right">

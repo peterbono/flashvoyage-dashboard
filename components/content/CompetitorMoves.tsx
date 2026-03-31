@@ -85,7 +85,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
                 {item.estimatedTraffic != null && (
                   <span className="ml-2 text-zinc-600">
                     ~{item.estimatedTraffic >= 1000
-                      ? `${(item.estimatedTraffic / 1000).toFixed(1)}k`
+                      ? `${((item.estimatedTraffic ?? 0) / 1000).toFixed(1)}k`
                       : item.estimatedTraffic}{" "}
                     visits
                   </span>

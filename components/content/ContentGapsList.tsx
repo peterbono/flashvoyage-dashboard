@@ -93,7 +93,7 @@ export function ContentGapsList({ items, loading, error }: Props) {
               <TableCell className="text-right">
                 <span className="text-xs font-mono text-zinc-300 tabular-nums">
                   {gap.searchVolume >= 1000
-                    ? `${(gap.searchVolume / 1000).toFixed(1)}k`
+                    ? `${((gap.searchVolume ?? 0) / 1000).toFixed(1)}k`
                     : gap.searchVolume}
                 </span>
               </TableCell>

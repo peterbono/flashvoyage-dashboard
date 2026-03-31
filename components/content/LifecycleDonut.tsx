@@ -134,7 +134,7 @@ export function LifecycleDonut({ data }: Props) {
                 {arc.count}
               </span>
               <span className="text-[10px] text-zinc-600 tabular-nums">
-                ({(arc.pct * 100).toFixed(0)}%)
+                ({((arc.pct ?? 0) * 100).toFixed(0)}%)
               </span>
             </div>
           ))}
