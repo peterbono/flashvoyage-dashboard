@@ -22,10 +22,13 @@ import {
   REAL_PIPELINE_NODES,
   REAL_POSITIONS,
   VIZ_BRIDGE_STAGE_IDS,
+  REEL_STAGE_IDS,
+  NODE_TO_WORKFLOW,
   VizRun,
   deriveNodeStatuses,
   RealPipelineStageData,
 } from "./realPipelineData";
+import { CronTimeline } from "./CronTimeline";
 import {
   PipelineStageData,
 } from "./mockData";
@@ -55,6 +58,8 @@ function buildRealGraph(): { nodes: Node[]; edges: Edge[] } {
   }));
 
   // Edges: 3 inputs → scout, then linear scout→extractor→...→publisher
+  const FUCHSIA = "#d946ef";
+
   const edges: Edge[] = [
     // Inputs to scout
     {
@@ -81,7 +86,7 @@ function buildRealGraph(): { nodes: Node[]; edges: Edge[] } {
       style: { stroke: ZINC, strokeWidth: 1.5, strokeDasharray: "5 3" },
       markerEnd: { type: MarkerType.ArrowClosed, color: ZINC, width: 12, height: 12 },
     },
-    // Linear pipeline
+    // Article pipeline (linear)
     ...VIZ_BRIDGE_STAGE_IDS.slice(0, -1).map((id, i) => {
       const nextId = VIZ_BRIDGE_STAGE_IDS[i + 1];
       return {
@@ -91,6 +96,18 @@ function buildRealGraph(): { nodes: Node[]; edges: Edge[] } {
         animated: true,
         style: { stroke: AMBER, strokeWidth: 2 },
         markerEnd: { type: MarkerType.ArrowClosed, color: AMBER, width: 14, height: 14 },
+      };
+    }),
+    // Reel pipeline (linear)
+    ...REEL_STAGE_IDS.slice(0, -1).map((id, i) => {
+      const nextId = REEL_STAGE_IDS[i + 1];
+      return {
+        id: `e-${id}-${nextId}`,
+        source: id,
+        target: nextId,
+        animated: true,
+        style: { stroke: FUCHSIA, strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: FUCHSIA, width: 14, height: 14 },
       };
     }),
   ];
@@ -159,6 +176,71 @@ export default function PipelineVisualizer() {
     const q = topic.toLowerCase();
     return candidateCards.filter((c) => c.title.toLowerCase().includes(q)).slice(0, 8);
   }, [topic, candidateCards]);
+
+  // ── Poll /api/workflows for real run statuses ────────────────────────────
+  // Colors nodes green/amber/red/grey based on latest GitHub Actions run.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchWorkflowStatuses() {
+      try {
+        const res = await fetch("/api/workflows");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          workflows: Array<{
+            id: string;
+            latestRun: { status: string; conclusion: string | null } | null;
+          }>;
+        };
+
+        if (cancelled) return;
+
+        // Build a map: workflow id -> derived status
+        const wfStatusMap: Record<string, "success" | "running" | "failed" | "idle"> = {};
+        for (const wf of data.workflows) {
+          if (!wf.latestRun) {
+            wfStatusMap[wf.id] = "idle";
+          } else if (wf.latestRun.status === "completed") {
+            wfStatusMap[wf.id] = wf.latestRun.conclusion === "success" ? "success" : "failed";
+          } else if (wf.latestRun.status === "in_progress" || wf.latestRun.status === "queued") {
+            wfStatusMap[wf.id] = "running";
+          } else {
+            wfStatusMap[wf.id] = "idle";
+          }
+        }
+
+        // Apply to nodes via NODE_TO_WORKFLOW mapping
+        setNodes((nds) =>
+          nds.map((node) => {
+            const wfId = NODE_TO_WORKFLOW[node.id];
+            if (!wfId) return node; // source nodes etc. — leave unchanged
+            const wfStatus = wfStatusMap[wfId];
+            if (!wfStatus) return node;
+
+            const stage = node.data as unknown as RealPipelineStageData;
+            // Only apply workflow status when node is still idle (don't override
+            // more granular viz-event status from article pipeline)
+            if (stage.status !== "idle") return node;
+
+            return {
+              ...node,
+              data: { ...stage, status: wfStatus } as unknown as Record<string, unknown>,
+            };
+          })
+        );
+      } catch {
+        // silent
+      }
+    }
+
+    fetchWorkflowStatuses();
+    const interval = setInterval(fetchWorkflowStatuses, 60_000); // every 60s
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -455,7 +537,7 @@ export default function PipelineVisualizer() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 shrink-0 flex-wrap gap-y-2">
         <h1 className="text-sm font-semibold text-white mr-1">Pipeline</h1>
@@ -654,9 +736,15 @@ export default function PipelineVisualizer() {
 
           {/* Mode label overlay */}
           <Panel position="top-left" className="mt-10 ml-2 pointer-events-none">
-            <div className="flex items-center gap-1.5 text-xs text-violet-400/80 bg-violet-950/20 rounded px-2 py-1">
-              <Github className="w-3 h-3" />
-              Production pipeline — viz-bridge agents
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-violet-400/80 bg-violet-950/20 rounded px-2 py-1">
+                <Github className="w-3 h-3" />
+                Article pipeline — viz-bridge agents
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-fuchsia-400/80 bg-fuchsia-950/20 rounded px-2 py-1">
+                <Github className="w-3 h-3" />
+                Reel pipeline — 3x/day cron
+              </div>
             </div>
           </Panel>
         </ReactFlow>
@@ -728,6 +816,9 @@ export default function PipelineVisualizer() {
           />
         )}
       </div>
+
+      {/* Cron schedule timeline */}
+      <CronTimeline />
     </div>
   );
 }

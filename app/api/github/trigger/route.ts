@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { triggerWorkflow } from "@/lib/github";
 
-const WORKFLOW_FILE = "auto-publish.yml";
-const REPO = "peterbono/flashvoyage-ultra-content";
-const BRANCH = "main";
-
-const DISPATCH_URL = `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+const WORKFLOW_FILE = "publish-article.yml";
 
 interface TriggerBody {
   dryRun?: boolean;
@@ -12,18 +9,6 @@ interface TriggerBody {
 }
 
 export async function POST(req: NextRequest) {
-  const token = process.env.GITHUB_TOKEN ?? process.env.GITHUB_PAT ?? "";
-
-  if (!token) {
-    return NextResponse.json(
-      {
-        error: "GitHub token required. Add GITHUB_TOKEN to Vercel env.",
-        configured: false,
-      },
-      { status: 503 }
-    );
-  }
-
   let body: TriggerBody = {};
   try {
     body = (await req.json()) as TriggerBody;
@@ -31,72 +16,35 @@ export async function POST(req: NextRequest) {
     // Empty or malformed body is fine — use defaults
   }
 
-  const res = await fetch(DISPATCH_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ ref: BRANCH }),
-  });
+  try {
+    const inputs: Record<string, string> = {};
+    if (body.dryRun) inputs.dry_run = "1";
 
-  // GitHub returns 204 No Content on success
-  if (res.status === 204) {
-    // Best-effort: fetch the latest run id for polling
-    const REPO = "peterbono/flashvoyage-ultra-content";
-    const BRANCH = "main";
-    const RUNS_URL = `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=1&branch=${BRANCH}`;
-
-    let latestRunId: number | null = null;
-    let actionsUrl = `https://github.com/${REPO}/actions`;
-
-    try {
-      // Small delay so the run registers in the API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      const runsRes = await fetch(RUNS_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      });
-      if (runsRes.ok) {
-        const runsData = (await runsRes.json()) as {
-          workflow_runs: { id: number; html_url: string }[];
-        };
-        if (runsData.workflow_runs.length > 0) {
-          latestRunId = runsData.workflow_runs[0].id;
-          actionsUrl = runsData.workflow_runs[0].html_url;
-        }
-      }
-    } catch {
-      // best-effort — not critical
-    }
+    const { runId, url } = await triggerWorkflow(WORKFLOW_FILE, inputs);
 
     return NextResponse.json({
       triggered: true,
       configured: true,
       message: "Pipeline launched on GitHub Actions",
-      actionsUrl,
-      runId: latestRunId,
+      actionsUrl: url,
+      runId,
       topic: body.topic ?? null,
     });
-  }
+  } catch (err) {
+    const errMsg = String(err);
+    console.error("[api/github/trigger]", errMsg);
 
-  let errorDetail = `HTTP ${res.status}`;
-  try {
-    const errBody = (await res.json()) as { message?: string };
-    errorDetail = errBody.message ?? errorDetail;
-  } catch {
-    // ignore parse errors
-  }
+    // Distinguish config errors from runtime errors
+    if (errMsg.includes("GITHUB_TOKEN is not configured")) {
+      return NextResponse.json(
+        { error: "GitHub token required. Add GITHUB_TOKEN to Vercel env.", configured: false },
+        { status: 503 }
+      );
+    }
 
-  console.error("[api/github/trigger]", errorDetail);
-  return NextResponse.json(
-    { error: errorDetail, configured: true },
-    { status: res.status >= 400 ? res.status : 500 }
-  );
+    return NextResponse.json(
+      { error: errMsg, configured: true },
+      { status: 500 }
+    );
+  }
 }

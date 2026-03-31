@@ -146,9 +146,56 @@ export const REAL_PIPELINE_NODES: RealPipelineStageData[] = [
     color: "text-emerald-400",
     variant: "publish",
   },
+
+  // ── REEL PIPELINE (separate row) ──────────────────────────────────────────
+  {
+    id: "reel-scheduler",
+    name: "Smart Scheduler",
+    description:
+      "Selects the next reel series + destination based on the content calendar rotation. Picks from Trip Pick, Budget Jour, Avant/Apres, Versus, Humor.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "TrendingUp",
+    color: "text-fuchsia-400",
+  },
+  {
+    id: "reel-generator",
+    name: "Reel Generator",
+    description:
+      "Generates reel content: script, overlay text, music selection, visual scenes. Uses Haiku for speed. Outputs a structured JSON reel spec.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Sparkles",
+    color: "text-fuchsia-400",
+  },
+  {
+    id: "reel-publisher",
+    name: "IG Publisher",
+    description:
+      "Publishes the reel to Instagram via the Graph API. Uploads media container, waits for processing, then publishes. Returns media ID and permalink.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Globe",
+    color: "text-fuchsia-400",
+  },
+  {
+    id: "reel-cross-publisher",
+    name: "Cross-Publisher",
+    description:
+      "Cross-posts the reel to Facebook Page and Threads. Adapts caption format per platform. Logs reach and engagement metrics.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Globe",
+    color: "text-fuchsia-400",
+    variant: "publish",
+  },
 ];
 
-// Ordered viz-bridge stage IDs (for sequencing)
+// Ordered viz-bridge stage IDs (for sequencing — article pipeline)
 export const VIZ_BRIDGE_STAGE_IDS = [
   "scout",
   "extractor",
@@ -157,6 +204,14 @@ export const VIZ_BRIDGE_STAGE_IDS = [
   "post-processing",
   "marie",
   "publisher",
+] as const;
+
+// Reel pipeline stage IDs (for sequencing)
+export const REEL_STAGE_IDS = [
+  "reel-scheduler",
+  "reel-generator",
+  "reel-publisher",
+  "reel-cross-publisher",
 ] as const;
 
 export type VizBridgeStageId = (typeof VIZ_BRIDGE_STAGE_IDS)[number];
@@ -221,7 +276,7 @@ export const REAL_POSITIONS: Record<string, { x: number; y: number }> = {
   "reddit-input":    { x: 0,    y: 0   },
   "rss-input":       { x: 0,    y: 130 },
   "manual-input":    { x: 0,    y: 260 },
-  // Linear pipeline stages
+  // Article pipeline stages (top row)
   "scout":           { x: 280,  y: 130 },
   "extractor":       { x: 560,  y: 130 },
   "generator":       { x: 840,  y: 130 },
@@ -229,4 +284,27 @@ export const REAL_POSITIONS: Record<string, { x: number; y: number }> = {
   "post-processing": { x: 1400, y: 130 },
   "marie":           { x: 1680, y: 130 },
   "publisher":       { x: 1960, y: 130 },
+  // Reel pipeline stages (bottom row, y offset +220)
+  "reel-scheduler":       { x: 280,  y: 420 },
+  "reel-generator":       { x: 660,  y: 420 },
+  "reel-publisher":       { x: 1040, y: 420 },
+  "reel-cross-publisher": { x: 1420, y: 420 },
+};
+
+// ── Map node IDs to GitHub workflow files ─────────────────────────────────────
+// Used to color nodes based on real workflow run status from /api/workflows.
+export const NODE_TO_WORKFLOW: Record<string, string> = {
+  // Article pipeline nodes map to publish-article.yml
+  "scout":           "publish-article",
+  "extractor":       "publish-article",
+  "generator":       "publish-article",
+  "finalizer":       "publish-article",
+  "post-processing": "publish-article",
+  "marie":           "publish-article",
+  "publisher":       "publish-article",
+  // Reel pipeline nodes map to publish-reels.yml
+  "reel-scheduler":       "publish-reels",
+  "reel-generator":       "publish-reels",
+  "reel-publisher":       "publish-reels",
+  "reel-cross-publisher": "publish-reels",
 };

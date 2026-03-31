@@ -7,6 +7,7 @@ import { useAppStore } from "@/lib/store";
 import {
   LayoutDashboard,
   GitBranch,
+  Film,
   DollarSign,
   FileText,
   CheckSquare,
@@ -26,6 +27,7 @@ import {
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
+  { href: "/reels", label: "Reels", icon: Film },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/content", label: "Content", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },

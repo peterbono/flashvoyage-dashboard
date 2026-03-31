@@ -1,76 +1,40 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from "@/components/ui/table";
 import { KpiCard } from "@/components/costs/KpiCard";
 import {
-  DollarSign, FileText, TrendingDown, Star, ArrowUpDown,
-  CheckCircle2, Clock, XCircle, TrendingUp, Zap, ExternalLink,
-  ChevronLeft, ChevronRight,
+  DollarSign, CalendarDays, TrendingDown, Type,
+  ArrowUpDown, ChevronDown, ChevronRight,
+  ChevronLeft, ChevronRight as ChevronRightPage,
+  Loader2, AlertTriangle, ExternalLink,
 } from "lucide-react";
-import { useSuggestionsCost } from "@/lib/useSuggestionsCost";
-import { useAppStore } from "@/lib/store";
-import type { PipelineHistoryEntry } from "@/lib/store";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Range = "1" | "7" | "30" | "90" | "all";
-
-interface DailyCost {
-  date: string;
-  cost: number;
-  articles: number;
-}
-
-interface ModelShare {
-  name: string;
-  value: number;
-  color: string;
-}
-
-interface ArticleRow {
-  id: string;
-  date: string;
-  title: string;
-  totalCost: number;
-  tokensIn: number;
-  tokensOut: number;
-  totalCalls?: number;
-  wordCount?: number;
-  costPerWord?: number;
+interface ByStepMetrics {
+  costUSD?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+  calls?: number;
   durationMs?: number;
-  llmTimeRatio?: number;
-  qualityScore: number;
-  status: "published" | "review" | "failed";
-  model: string;
-  url?: string;
+  model?: string;
 }
 
-interface WpStats {
-  total: number;
-  drafts: number;
-  recent: { id: number; title: string; date: string; url: string; slug: string }[];
-}
-
-// GitHub API response types
-interface GithubArticle {
-  id: number;
-  title: string;
-  date: string;
-  url: string;
-  slug: string;
-}
-
-interface GithubArticlesResponse {
-  articles: GithubArticle[];
-  total: number;
-  fetchedAt: string;
+interface ByModelMetrics {
+  costUSD?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+  calls?: number;
 }
 
 interface CostEntry {
@@ -89,56 +53,14 @@ interface CostEntry {
   llmDurationMs: number;
   llmTimeRatio: number;
   costPerWord: number;
-  byStep: Record<string, unknown>;
-  byModel: Record<string, unknown>;
+  byStep: Record<string, ByStepMetrics>;
+  byModel: Record<string, ByModelMetrics>;
 }
 
-interface GithubCostsResponse {
-  entries: CostEntry[];
-  total: number;
-  fetchedAt: string;
-}
+type Granularity = "daily" | "weekly" | "monthly";
+type SortColumn = "date" | "cost" | "tokens" | "duration" | "costPerWord";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const RANGE_LABELS: Record<Range, string> = {
-  "1": "1d",
-  "7": "7d",
-  "30": "30d",
-  "90": "90d",
-  "all": "All",
-};
-
-const STATUS_CONFIG = {
-  published: { label: "Published", color: "text-emerald-400 border-emerald-800/60 bg-emerald-950/30", icon: CheckCircle2 },
-  review:    { label: "Review",    color: "text-amber-400 border-amber-800/60 bg-amber-950/30",       icon: Clock },
-  failed:    { label: "Failed",    color: "text-red-400 border-red-800/60 bg-red-950/30",             icon: XCircle },
-};
-
-// Model names derived from track type
-const MODEL_BY_TRACK: Record<PipelineHistoryEntry["track"], string> = {
-  evergreen: "claude-sonnet-4-5",
-  news: "claude-haiku-4-5",
-};
-
-// Palette for model donut — assigned by index so unknown model names still get a color
-const MODEL_PALETTE = ["#6366f1", "#f59e0b", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c", "#22d3ee"];
-
-// Fuzzy color lookup: match by substring, fall back to palette slot
-function modelColor(name: string, index: number): string {
-  const n = name.toLowerCase();
-  if (n.includes("sonnet"))    return "#6366f1";
-  if (n.includes("haiku"))     return "#f59e0b";
-  if (n.includes("opus"))      return "#a78bfa";
-  if (n.includes("gpt-4o-mini") || n.includes("gpt-4-mini")) return "#34d399";
-  if (n.includes("gpt-4"))     return "#60a5fa";
-  if (n.includes("gpt-3"))     return "#fb923c";
-  if (n.includes("gemini"))    return "#f472b6";
-  if (n.includes("mistral"))   return "#22d3ee";
-  return MODEL_PALETTE[index % MODEL_PALETTE.length];
-}
-
-const PAGE_SIZE = 20;
 
 const CHART_TOOLTIP_STYLE = {
   backgroundColor: "#18181b",
@@ -149,618 +71,437 @@ const CHART_TOOLTIP_STYLE = {
   padding: "8px 12px",
 };
 const TOOLTIP_LABEL_STYLE = { color: "#ffffff", fontWeight: 600, marginBottom: 2 };
-const TOOLTIP_ITEM_STYLE  = { color: "#e4e4e7" };
+
+const MODEL_COLORS: Record<string, string> = {
+  "gpt-4o": "#6366f1",
+  "gpt-4o-mini": "#34d399",
+  "claude-haiku-4-5": "#f59e0b",
+  "claude-sonnet-4-5": "#a78bfa",
+};
+const FALLBACK_COLORS = ["#60a5fa", "#f472b6", "#fb923c", "#22d3ee", "#fbbf24", "#4ade80"];
+
+function getModelColor(name: string, index: number): string {
+  const lower = name.toLowerCase();
+  for (const [key, color] of Object.entries(MODEL_COLORS)) {
+    if (lower.includes(key) || lower.replace(/[^a-z0-9]/g, "").includes(key.replace(/[^a-z0-9]/g, ""))) {
+      return color;
+    }
+  }
+  // Fuzzy substring match
+  if (lower.includes("gpt-4o-mini") || lower.includes("gpt-4-mini")) return "#34d399";
+  if (lower.includes("gpt-4o") || lower.includes("gpt4o")) return "#6366f1";
+  if (lower.includes("haiku")) return "#f59e0b";
+  if (lower.includes("sonnet")) return "#a78bfa";
+  if (lower.includes("opus")) return "#f472b6";
+  return FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
+
+const PAGE_SIZE = 20;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function toDateStr(epochMs: number): string {
-  return new Date(epochMs).toISOString().slice(0, 10);
+/** Get ISO week key like "2026-W09" */
+function isoWeek(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
-function cutoffForRange(range: Range): string | null {
-  if (range === "all") return null;
-  const d = new Date();
-  d.setDate(d.getDate() - parseInt(range));
-  return d.toISOString().slice(0, 10);
+/** Get month key like "2026-03" */
+function monthKey(dateStr: string): string {
+  return dateStr.slice(0, 7);
 }
 
-function prevCutoffForRange(range: Range): string | null {
-  if (range === "all") return null;
-  const n = parseInt(range);
-  const d = new Date();
-  d.setDate(d.getDate() - n * 2);
-  return d.toISOString().slice(0, 10);
+/** Format duration in ms to human-readable */
+function formatDuration(ms: number): string {
+  if (ms < 60000) return `${(ms / 1000).toFixed(0)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
 }
 
-/** Build daily cost array from pipelineHistory, filtered to [fromDate, toDate) */
-function buildDailyCosts(
-  history: PipelineHistoryEntry[],
-  fromDate: string | null,
-  toDate: string | null = null,
-): DailyCost[] {
-  const map = new Map<string, DailyCost>();
-
-  for (const entry of history) {
-    const date = toDateStr(entry.startedAt);
-    if (fromDate && date < fromDate) continue;
-    if (toDate && date >= toDate) continue;
-
-    const existing = map.get(date);
-    if (existing) {
-      existing.cost += entry.totalCost;
-      existing.articles += entry.status === "done" ? 1 : 0;
-    } else {
-      map.set(date, {
-        date,
-        cost: entry.totalCost,
-        articles: entry.status === "done" ? 1 : 0,
-      });
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/** Build daily cost array from real production cost-history.jsonl entries */
-function buildDailyCostsFromGhEntries(entries: CostEntry[]): DailyCost[] {
-  const map = new Map<string, DailyCost>();
+/** Aggregate entries into time-bucketed chart data, split by model */
+function buildChartData(
+  entries: CostEntry[],
+  granularity: Granularity,
+): { data: Record<string, unknown>[]; modelKeys: string[] } {
+  // Collect all models
+  const allModels = new Set<string>();
   for (const entry of entries) {
-    const date = entry.date.slice(0, 10);
-    const existing = map.get(date);
-    if (existing) {
-      existing.cost += entry.totalCostUSD ?? 0;
-      existing.articles += 1;
-    } else {
-      map.set(date, { date, cost: entry.totalCostUSD ?? 0, articles: 1 });
+    for (const model of Object.keys(entry.byModel ?? {})) {
+      allModels.add(model);
     }
   }
-  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-}
+  const modelKeys = Array.from(allModels).sort();
 
+  // Group by time bucket
+  const buckets = new Map<string, Record<string, number>>();
+
+  for (const entry of entries) {
+    const dateStr = entry.date.slice(0, 10);
+    let bucket: string;
+    if (granularity === "daily") bucket = dateStr;
+    else if (granularity === "weekly") bucket = isoWeek(dateStr);
+    else bucket = monthKey(dateStr);
+
+    if (!buckets.has(bucket)) {
+      const init: Record<string, number> = {};
+      for (const m of modelKeys) init[m] = 0;
+      init["_total"] = 0;
+      buckets.set(bucket, init);
+    }
+
+    const b = buckets.get(bucket)!;
+    for (const [model, metrics] of Object.entries(entry.byModel ?? {})) {
+      const cost = (metrics as ByModelMetrics)?.costUSD ?? 0;
+      b[model] = (b[model] ?? 0) + cost;
+      b["_total"] = (b["_total"] ?? 0) + cost;
+    }
+    // If no byModel data, aggregate total
+    if (!entry.byModel || Object.keys(entry.byModel).length === 0) {
+      b["_total"] = (b["_total"] ?? 0) + entry.totalCostUSD;
+    }
+  }
+
+  const data = Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([bucket, values]) => ({
+      bucket,
+      ...values,
+    }));
+
+  return { data, modelKeys };
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CostsPage() {
-  const suggestionsCost = useSuggestionsCost();
-  const pipelineHistory = useAppStore((s) => s.pipelineHistory);
+  // ── Data fetch ───────────────────────────────────────────────────────────
+  const [entries, setEntries] = useState<CostEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [range, setRange] = useState<Range>("all");
-  const [sortCol, setSortCol] = useState<"date" | "cost" | "quality">("date");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
-  const [page, setPage] = useState(0);
-
-  // WordPress stats (async fetch — kept for backwards-compat slug matching)
-  const [wpStats, setWpStats] = useState<WpStats | null>(null);
   useEffect(() => {
-    fetch("/api/wordpress/stats")
-      .then((r) => r.json())
-      .then((data: WpStats) => {
-        if (!data || "error" in data) return;
-        setWpStats(data);
-      })
-      .catch(() => { /* non-critical */ });
-  }, []);
-
-  // GitHub articles — for URL enrichment of production pipeline entries
-  const [ghArticles, setGhArticles] = useState<GithubArticlesResponse | null>(null);
-  useEffect(() => {
-    fetch("/api/github/articles")
-      .then((r) => r.json())
-      .then((data: GithubArticlesResponse) => {
-        if (!data || "error" in data) return;
-        setGhArticles(data);
-      })
-      .catch(() => { /* non-critical */ });
-  }, []);
-
-  // GitHub costs — production pipeline real cost data
-  const [ghCosts, setGhCosts] = useState<GithubCostsResponse | null>(null);
-  const [ghCostsLoading, setGhCostsLoading] = useState(true);
-  useEffect(() => {
-    setGhCostsLoading(true);
+    setLoading(true);
+    setError(null);
     fetch("/api/github/costs")
-      .then((r) => r.json())
-      .then((data: GithubCostsResponse) => {
-        setGhCosts(data);
-        setGhCostsLoading(false);
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .catch(() => {
-        setGhCostsLoading(false);
+      .then((data: { entries: CostEntry[]; total: number }) => {
+        setEntries(data.entries ?? []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(String(err));
+        setLoading(false);
       });
   }, []);
 
-  // ── Derived daily cost data ──────────────────────────────────────────────
-  const currFromDate = cutoffForRange(range);
-  const prevFromDate = prevCutoffForRange(range);
+  // ── State ────────────────────────────────────────────────────────────────
+  const [granularity, setGranularity] = useState<Granularity>("daily");
+  const [sortCol, setSortCol] = useState<SortColumn>("date");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
-  // Merge real production data (ghCosts) + dashboard-triggered runs (pipelineHistory)
-  const allDailyCosts = useMemo(() => {
-    const ghDays = ghCosts ? buildDailyCostsFromGhEntries(ghCosts.entries) : [];
-    const dashDays = buildDailyCosts(pipelineHistory, null);
-    const map = new Map<string, DailyCost>();
-    for (const d of ghDays) map.set(d.date, { ...d });
-    for (const d of dashDays) {
-      const ex = map.get(d.date);
-      if (ex) { ex.cost += d.cost; ex.articles += d.articles; }
-      else map.set(d.date, { ...d });
+  // ── KPI Computation ──────────────────────────────────────────────────────
+  const kpis = useMemo(() => {
+    if (entries.length === 0) {
+      return {
+        totalSpend: 0,
+        totalSpendDelta: undefined as number | undefined,
+        mtdSpend: 0,
+        avgCostArticle: 0,
+        avgCostWord: 0,
+      };
     }
-    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [pipelineHistory, ghCosts]);
 
-  const filteredDays = useMemo(() => {
-    if (range === "all") return allDailyCosts;
-    return allDailyCosts.filter((d) => d.date >= (currFromDate ?? ""));
-  }, [allDailyCosts, range, currFromDate]);
+    const totalSpend = entries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const totalWords = entries.reduce((s, e) => s + (e.wordCount ?? 0), 0);
+    const avgCostArticle = totalSpend / entries.length;
+    const avgCostWord = totalWords > 0 ? totalSpend / totalWords : 0;
 
-  const prevDays = useMemo(() => {
-    if (range === "all") return [];
-    return allDailyCosts.filter(
-      (d) => d.date >= (prevFromDate ?? "") && d.date < (currFromDate ?? ""),
-    );
-  }, [allDailyCosts, range, prevFromDate, currFromDate]);
+    // MTD: current month
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const mtdSpend = entries
+      .filter((e) => e.date.slice(0, 7) === currentMonth)
+      .reduce((s, e) => s + e.totalCostUSD, 0);
 
-  const comparisonDays = useMemo(() =>
-    prevDays.map((d, i) => ({
-      ...d,
-      date: filteredDays[i]?.date ?? d.date,
-    })),
-  [prevDays, filteredDays]);
+    // Delta: compare last 30d vs previous 30d
+    const today = new Date();
+    const d30ago = new Date(today);
+    d30ago.setDate(d30ago.getDate() - 30);
+    const d60ago = new Date(today);
+    d60ago.setDate(d60ago.getDate() - 60);
+    const d30str = d30ago.toISOString().slice(0, 10);
+    const d60str = d60ago.toISOString().slice(0, 10);
 
-  const chartData = useMemo(() => {
-    if (!showComparison) return filteredDays;
-    return filteredDays.map((d, i) => ({ ...d, prevCost: comparisonDays[i]?.cost }));
-  }, [filteredDays, comparisonDays, showComparison]);
+    const last30 = entries
+      .filter((e) => e.date.slice(0, 10) >= d30str)
+      .reduce((s, e) => s + e.totalCostUSD, 0);
+    const prev30 = entries
+      .filter((e) => {
+        const d = e.date.slice(0, 10);
+        return d >= d60str && d < d30str;
+      })
+      .reduce((s, e) => s + e.totalCostUSD, 0);
 
-  // ── Model shares: real byModel data from production cost-history.jsonl ──
-  const modelShares = useMemo((): ModelShare[] => {
-    const totals = new Map<string, number>();
-    let grand = 0;
-    // Primary: real production data
-    if (ghCosts?.entries.length) {
-      for (const entry of ghCosts.entries) {
-        const byModel = entry.byModel as Record<string, { costUSD?: number }> | undefined;
-        if (!byModel) continue;
-        for (const [model, metrics] of Object.entries(byModel)) {
-          const cost = metrics?.costUSD ?? 0;
-          totals.set(model, (totals.get(model) ?? 0) + cost);
-          grand += cost;
-        }
+    const totalSpendDelta = prev30 > 0 ? ((last30 - prev30) / prev30) * 100 : undefined;
+
+    return { totalSpend, totalSpendDelta, mtdSpend, avgCostArticle, avgCostWord };
+  }, [entries]);
+
+  // Spark data for KPI cards
+  const sparkData = useMemo(() => {
+    if (entries.length === 0) return { cost: [], mtd: [], avgArticle: [], avgWord: [] };
+
+    // Build daily totals for spark
+    const dailyMap = new Map<string, { cost: number; count: number; words: number }>();
+    for (const e of entries) {
+      const d = e.date.slice(0, 10);
+      const existing = dailyMap.get(d);
+      if (existing) {
+        existing.cost += e.totalCostUSD;
+        existing.count += 1;
+        existing.words += e.wordCount ?? 0;
+      } else {
+        dailyMap.set(d, { cost: e.totalCostUSD, count: 1, words: e.wordCount ?? 0 });
       }
     }
-    // Fallback: dashboard-triggered history
-    if (grand === 0) {
-      for (const entry of pipelineHistory) {
-        const model = MODEL_BY_TRACK[entry.track];
-        totals.set(model, (totals.get(model) ?? 0) + entry.totalCost);
-        grand += entry.totalCost;
+    const days = Array.from(dailyMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-14);
+
+    return {
+      cost: days.map(([, d]) => d.cost),
+      mtd: days.map(([, d]) => d.cost),
+      avgArticle: days.map(([, d]) => d.count > 0 ? d.cost / d.count : 0),
+      avgWord: days.map(([, d]) => d.words > 0 ? d.cost / d.words : 0),
+    };
+  }, [entries]);
+
+  // ── Cost Trend Chart ─────────────────────────────────────────────────────
+  const { data: chartData, modelKeys } = useMemo(
+    () => buildChartData(entries, granularity),
+    [entries, granularity],
+  );
+
+  // ── Model Breakdown (donut) ──────────────────────────────────────────────
+  const modelShares = useMemo(() => {
+    const totals = new Map<string, number>();
+    let grand = 0;
+    for (const entry of entries) {
+      for (const [model, metrics] of Object.entries(entry.byModel ?? {})) {
+        const cost = (metrics as ByModelMetrics)?.costUSD ?? 0;
+        totals.set(model, (totals.get(model) ?? 0) + cost);
+        grand += cost;
       }
     }
     if (grand === 0) return [];
-    return Array.from(totals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, cost], idx) => ({
-        name,
-        value: Math.round((cost / grand) * 100),
-        color: modelColor(name, idx),
-      }));
-  }, [ghCosts, pipelineHistory]);
 
-  // ── KPI computation ──────────────────────────────────────────────────────
-  const rangeStats = useMemo(() => {
-    const curr = filteredDays;
-    const prev = prevDays;
+    // Group small models (<3%) into "Other"
+    const threshold = grand * 0.03;
+    let otherTotal = 0;
+    const significantModels: { name: string; value: number; absValue: number }[] = [];
 
-    const currCost = curr.reduce((s, d) => s + d.cost, 0);
-    const prevCost = prev.reduce((s, d) => s + d.cost, 0);
-    const currArts = curr.reduce((s, d) => s + d.articles, 0);
-    const prevArts = prev.reduce((s, d) => s + d.articles, 0);
-    const currAvg  = currCost / Math.max(currArts, 1);
-    const prevAvg  = prevCost / Math.max(prevArts, 1);
-
-    const hasPrev = prev.length > 0;
-    const costPct = hasPrev && prevCost ? ((Math.abs(currCost - prevCost) / prevCost) * 100).toFixed(1) : undefined;
-    const artsPct = hasPrev && prevArts ? ((Math.abs(currArts - prevArts) / prevArts) * 100).toFixed(1) : undefined;
-    const avgPct  = hasPrev && prevAvg  ? ((Math.abs(currAvg  - prevAvg)  / prevAvg)  * 100).toFixed(1) : undefined;
-
-    const spark   = curr.length > 14 ? curr.slice(-14) : curr;
-    const last7   = curr.slice(-Math.min(7, curr.length));
-    const projected = (last7.reduce((s, d) => s + d.cost, 0) / Math.max(last7.length, 1)) * 30;
-
-    return {
-      totalCost: currCost,
-      totalArts: currArts,
-      avgCost:   currAvg,
-      costPct,   costUp:  currCost > prevCost,
-      artsPct,   artsUp:  currArts > prevArts,
-      avgPct,    avgUp:   currAvg  > prevAvg,
-      projected,
-      costSpark: spark.map((d) => d.cost),
-      artsSpark: spark.map((d) => d.articles),
-      avgSpark:  spark.map((d) => d.cost / Math.max(d.articles, 1)),
-    };
-  }, [filteredDays, prevDays]);
-
-  // ── Quality KPI (from pipelineHistory entries in range) ──────────────────
-  const qualStats = useMemo(() => {
-    const currEntries = pipelineHistory.filter((e) => {
-      const date = toDateStr(e.startedAt);
-      return !currFromDate || date >= currFromDate;
-    });
-    const prevEntries = range !== "all"
-      ? pipelineHistory.filter((e) => {
-          const date = toDateStr(e.startedAt);
-          return date >= (prevFromDate ?? "") && date < (currFromDate ?? "");
-        })
-      : [];
-
-    const withScore = (entries: PipelineHistoryEntry[]) =>
-      entries.filter((e): e is PipelineHistoryEntry & { qualityScore: number } =>
-        e.qualityScore !== undefined,
-      );
-
-    const currQ = withScore(currEntries);
-    const prevQ = withScore(prevEntries);
-
-    const currAvg = currQ.length ? currQ.reduce((s, e) => s + e.qualityScore, 0) / currQ.length : 0;
-    const prevAvg = prevQ.length ? prevQ.reduce((s, e) => s + e.qualityScore, 0) / prevQ.length : 0;
-
-    const qualPct = prevAvg ? ((Math.abs(currAvg - prevAvg) / prevAvg) * 100).toFixed(1) : undefined;
-
-    return {
-      avg:     currAvg,
-      qualPct,
-      qualUp:  currAvg > prevAvg,
-      spark:   currQ.slice(-14).map((e) => e.qualityScore),
-    };
-  }, [pipelineHistory, range, currFromDate, prevFromDate]);
-
-  // ── Articles table ────────────────────────────────────────────────────────
-  // Merge GitHub production pipeline entries (cost-history.jsonl) with
-  // dashboard-triggered pipelineHistory entries. GitHub entries are primary;
-  // pipelineHistory fills in dashboard-triggered runs not yet in the file.
-  const articleRows = useMemo((): ArticleRow[] => {
-    // Index WP posts by slug/title for URL fallback
-    const wpBySlug = new Map<string, WpStats["recent"][number]>();
-    if (wpStats) {
-      for (const post of wpStats.recent) {
-        wpBySlug.set(post.slug.toLowerCase(), post);
-        wpBySlug.set(post.title.toLowerCase(), post);
-      }
-    }
-
-    // Index GitHub articles by title (lowercase) and by slug for URL matching
-    const ghByTitle = new Map<string, GithubArticle>();
-    const ghBySlug  = new Map<string, GithubArticle>();
-    if (ghArticles) {
-      for (const a of ghArticles.articles) {
-        ghByTitle.set(a.title.toLowerCase(), a);
-        ghBySlug.set(a.slug.toLowerCase(), a);
-      }
-    }
-
-    const rows: ArticleRow[] = [];
-
-    // 1. Production pipeline entries from GitHub cost-history.jsonl
-    if (ghCosts) {
-      for (const entry of ghCosts.entries) {
-        const dateStr = entry.date.slice(0, 10);
-
-        // Resolve URL: entry.url first, then match by title in GitHub articles DB
-        const ghMatch =
-          ghByTitle.get(entry.title.toLowerCase()) ??
-          (entry.slug ? ghBySlug.get(entry.slug.toLowerCase()) : undefined);
-        const resolvedUrl = entry.url || ghMatch?.url;
-
-        // Determine model from byModel keys if available, fall back to unknown
-        const modelKeys = Object.keys(entry.byModel ?? {});
-        const dominantModel =
-          modelKeys.length === 1
-            ? modelKeys[0]
-            : modelKeys.find((k) => k.includes("sonnet")) ??
-              modelKeys.find((k) => k.includes("haiku")) ??
-              modelKeys[0] ??
-              "unknown";
-
-        rows.push({
-          id: `gh-${entry.articleId ?? dateStr}-${entry.title.slice(0, 20)}`,
-          date: dateStr,
-          title: entry.title,
-          totalCost: entry.totalCostUSD,
-          tokensIn: entry.totalTokensIn ?? 0,
-          tokensOut: entry.totalTokensOut ?? 0,
-          totalCalls: entry.totalCalls || undefined,
-          wordCount: entry.wordCount || undefined,
-          costPerWord: entry.costPerWord || undefined,
-          durationMs: entry.durationMs || undefined,
-          llmTimeRatio: entry.llmTimeRatio || undefined,
-          qualityScore: 0,
-          status: resolvedUrl ? "published" : "review",
-          model: dominantModel,
-          url: resolvedUrl,
+    for (const [name, cost] of totals.entries()) {
+      if (cost < threshold) {
+        otherTotal += cost;
+      } else {
+        significantModels.push({
+          name,
+          value: Math.round((cost / grand) * 100),
+          absValue: cost,
         });
       }
     }
 
-    // 2. Dashboard-triggered pipeline history entries
-    //    Deduplicate by title+date against GitHub entries already added
-    const ghKeys = new Set(rows.map((r) => `${r.date}::${r.title.toLowerCase()}`));
+    significantModels.sort((a, b) => b.absValue - a.absValue);
 
-    for (const entry of pipelineHistory) {
-      const date = toDateStr(entry.startedAt);
-      const titleKey = `${date}::${entry.topic.toLowerCase()}`;
-      if (ghKeys.has(titleKey)) continue; // already present from GitHub data
+    const shares = significantModels.map((m, i) => ({
+      name: m.name,
+      value: m.value,
+      absValue: m.absValue,
+      color: getModelColor(m.name, i),
+    }));
 
-      const topicKey = entry.topic.toLowerCase().replace(/\s+/g, "-");
-      const wpPost = wpBySlug.get(topicKey) ?? wpBySlug.get(entry.topic.toLowerCase());
-
-      const status: ArticleRow["status"] =
-        entry.status === "done"
-          ? entry.publishedUrl
-            ? "published"
-            : "review"
-          : "failed";
-
-      const estimatedTokens = entry.totalCost > 0
-        ? Math.round((entry.totalCost / 0.00000125) * 0.8)
-        : 0;
-
-      rows.push({
-        id: entry.id,
-        date,
-        title: wpPost?.title ?? entry.topic,
-        totalCost: entry.totalCost,
-        tokensIn:  Math.round(estimatedTokens * 0.7),
-        tokensOut: Math.round(estimatedTokens * 0.3),
-        qualityScore: entry.qualityScore ?? 0,
-        status,
-        model: MODEL_BY_TRACK[entry.track],
-        url: entry.publishedUrl ?? wpPost?.url,
+    if (otherTotal > 0) {
+      shares.push({
+        name: "Other",
+        value: Math.round((otherTotal / grand) * 100),
+        absValue: otherTotal,
+        color: "#71717a",
       });
     }
 
-    return rows;
-  }, [pipelineHistory, wpStats, ghCosts, ghArticles]);
+    return shares;
+  }, [entries]);
 
-  const filteredArticleRows = useMemo(() => {
-    const filtered = range === "all"
-      ? articleRows
-      : articleRows.filter((a) => !currFromDate || a.date >= currFromDate);
-    // Default sort: date descending (most recent first)
-    return [...filtered].sort((a, b) => b.date.localeCompare(a.date));
-  }, [articleRows, range, currFromDate]);
-
-  const sortedArticles = useMemo(() => {
-    return [...filteredArticleRows].sort((a, b) => {
+  // ── Run Detail Table ─────────────────────────────────────────────────────
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => {
       let cmp = 0;
-      if (sortCol === "date")    cmp = a.date.localeCompare(b.date);
-      else if (sortCol === "cost")    cmp = a.totalCost - b.totalCost;
-      else if (sortCol === "quality") cmp = a.qualityScore - b.qualityScore;
+      switch (sortCol) {
+        case "date": cmp = a.date.localeCompare(b.date); break;
+        case "cost": cmp = a.totalCostUSD - b.totalCostUSD; break;
+        case "tokens": cmp = a.totalTokens - b.totalTokens; break;
+        case "duration": cmp = a.durationMs - b.durationMs; break;
+        case "costPerWord": cmp = (a.costPerWord ?? 0) - (b.costPerWord ?? 0); break;
+      }
       return sortAsc ? cmp : -cmp;
     });
-  }, [filteredArticleRows, sortCol, sortAsc]);
+  }, [entries, sortCol, sortAsc]);
 
-  function toggleSort(col: "date" | "cost" | "quality") {
+  const totalPages = Math.ceil(sortedEntries.length / PAGE_SIZE);
+  const pagedEntries = sortedEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  function toggleSort(col: SortColumn) {
     if (sortCol === col) setSortAsc((v) => !v);
     else { setSortCol(col); setSortAsc(false); }
     setPage(0);
   }
 
-  // Paginated slice of sorted articles
-  const totalPages = Math.ceil(sortedArticles.length / PAGE_SIZE);
-  const pagedArticles = sortedArticles.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  const hasHistory = pipelineHistory.length > 0 || (ghCosts?.entries.length ?? 0) > 0;
-
-  // ── Helper: aggregate byStep across a subset of entries ─────────────────
-  function aggregateSteps(entries: CostEntry[], fromDate: string | null) {
-    const agg: Record<string, { calls: number; tokensIn: number; tokensOut: number; cost: number }> = {};
-    let count = 0;
-    for (const entry of entries) {
-      if (fromDate && entry.date.slice(0, 10) < fromDate) continue;
-      count++;
-      const byStep = entry.byStep as Record<string, { costUSD?: number; tokensIn?: number; tokensOut?: number; calls?: number }> | undefined;
-      if (!byStep) continue;
-      for (const [step, metrics] of Object.entries(byStep)) {
-        if (!agg[step]) agg[step] = { calls: 0, tokensIn: 0, tokensOut: 0, cost: 0 };
-        agg[step].calls    += metrics?.calls    ?? 0;
-        agg[step].tokensIn  += metrics?.tokensIn  ?? 0;
-        agg[step].tokensOut += metrics?.tokensOut ?? 0;
-        agg[step].cost      += metrics?.costUSD   ?? 0;
-      }
-    }
-    const totalCost = Object.values(agg).reduce((s, v) => s + v.cost, 0);
-    const rows = Object.entries(agg)
-      .map(([step, data]) => ({ step, ...data, pct: totalCost > 0 ? (data.cost / totalCost) * 100 : 0 }))
-      .filter((s) => s.cost > 0)
-      .sort((a, b) => b.cost - a.cost);
-    return { rows, count };
+  function toggleExpand(id: string) {
+    setExpandedRow((prev) => (prev === id ? null : id));
   }
 
-  // Cost by Pipeline Stage bar chart — always ALL-TIME data.
-  // The bar chart shows the structural cost breakdown of the pipeline (which
-  // steps cost most per article). Using all 154 runs gives a reliable baseline.
-  // It should NOT change when the range filter is switched — that would be
-  // misleading because short windows have too few samples.
-  const realStageCosts = useMemo(() => {
-    if (!ghCosts?.entries.length) return [];
-    const { rows, count } = aggregateSteps(ghCosts.entries, null); // null = no date filter
-    const n = Math.max(count, 1);
-    return rows.map((r) => ({ stage: r.step, cost: r.cost / n, total: r.cost }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ghCosts]);
+  function entryKey(entry: CostEntry, index: number): string {
+    return `${entry.date}-${entry.articleId ?? index}-${entry.title.slice(0, 20)}`;
+  }
 
-  // Pipeline Step Breakdown table — filtered by selected range (user-requested).
-  // Shows calls / tokens / cost for the selected period for deeper analysis.
-  const realStepDetails = useMemo(() => {
-    const empty = { rows: [] as { step: string; calls: number; tokensIn: number; tokensOut: number; cost: number; pct: number }[], count: 0 };
-    if (!ghCosts?.entries.length) return empty;
-    return aggregateSteps(ghCosts.entries, currFromDate);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ghCosts, currFromDate]);
-
-  return (
-    <div className="p-6 space-y-6 overflow-auto h-full max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">LLM and infrastructure spend analytics</p>
+  // ── Loading state ────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
+          <p className="text-sm text-zinc-500">Loading cost data from production pipeline...</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Forecast pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-amber-400 text-xs">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span className="font-medium">Proj. month-end:</span>
-            <span className="font-bold">${rangeStats.projected.toFixed(2)}</span>
-          </div>
+      </div>
+    );
+  }
 
-          {/* Comparison toggle */}
+  // ── Error state ──────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3 text-center max-w-md">
+          <AlertTriangle className="w-8 h-8 text-rose-400" />
+          <p className="text-sm text-zinc-400">Failed to load cost data</p>
+          <p className="text-xs text-zinc-600 font-mono">{error}</p>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowComparison(v => !v)}
-            className={`h-7 px-3 text-xs transition-colors ${showComparison ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-white hover:bg-zinc-800"}`}
+            onClick={() => window.location.reload()}
+            className="mt-2 text-zinc-400 hover:text-white"
           >
-            vs prev period
+            Retry
           </Button>
-
-          {/* Range filter */}
-          <div className="flex items-center gap-0.5 bg-zinc-900 border border-zinc-800/80 rounded-lg p-1">
-            {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
-              <Button
-                key={r}
-                variant="ghost"
-                size="sm"
-                onClick={() => { setRange(r); setPage(0); }}
-                className={`h-6 px-2.5 text-xs rounded-md transition-colors ${
-                  range === r
-                    ? "bg-zinc-700 text-white"
-                    : "text-zinc-500 hover:text-white hover:bg-zinc-800"
-                }`}
-              >
-                {RANGE_LABELS[r]}
-              </Button>
-            ))}
-          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Live suggestions cost banner */}
-      {suggestionsCost && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-violet-950/30 border border-violet-800/40">
-          <div className="flex items-center justify-center w-7 h-7 rounded-md bg-violet-500/10 shrink-0">
-            <Zap className="w-3.5 h-3.5 text-violet-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-white">
-              Trending Suggestions · today
-            </p>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {suggestionsCost.callCount} Claude call{suggestionsCost.callCount > 1 ? "s" : ""} · real spend tracked from localStorage
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-lg font-bold text-violet-300 tabular-nums">
-              ${suggestionsCost.totalUsd.toFixed(4)}
-            </p>
-            <p className="text-xs text-zinc-600">today</p>
-          </div>
-        </div>
-      )}
+  // ── Render ───────────────────────────────────────────────────────────────
+  return (
+    <div className="p-6 space-y-6 overflow-auto h-full max-w-7xl">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
+        <p className="text-sm text-zinc-500 mt-0.5">
+          Real pipeline spend from {entries.length} production runs
+        </p>
+      </div>
 
-      {/* KPI row */}
+      {/* ── 1. KPI Bar ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
-          label="Total Cost"
-          value={`$${rangeStats.totalCost.toFixed(2)}`}
-          trend={rangeStats.costPct !== undefined ? rangeStats.costPct + "%" : undefined}
-          trendUp={rangeStats.costUp}
+          label="Total Spend"
+          value={`$${kpis.totalSpend.toFixed(2)}`}
+          trend={
+            kpis.totalSpendDelta !== undefined
+              ? `${Math.abs(kpis.totalSpendDelta).toFixed(1)}%`
+              : undefined
+          }
+          trendUp={kpis.totalSpendDelta !== undefined ? kpis.totalSpendDelta > 0 : undefined}
           positiveIsUp={false}
           icon={DollarSign}
           iconColor="text-amber-400"
-          sparkData={rangeStats.costSpark}
+          sparkData={sparkData.cost}
           sparkColor="#f59e0b"
         />
         <KpiCard
-          label="Articles Generated"
-          value={String(rangeStats.totalArts)}
-          trend={rangeStats.artsPct !== undefined ? rangeStats.artsPct + "%" : undefined}
-          trendUp={rangeStats.artsUp}
-          positiveIsUp={true}
-          icon={FileText}
+          label="MTD Spend"
+          value={`$${kpis.mtdSpend.toFixed(2)}`}
+          icon={CalendarDays}
           iconColor="text-blue-400"
-          sparkData={rangeStats.artsSpark}
+          sparkData={sparkData.mtd}
           sparkColor="#60a5fa"
         />
         <KpiCard
           label="Avg Cost / Article"
-          value={`$${rangeStats.avgCost.toFixed(3)}`}
-          trend={rangeStats.avgPct !== undefined ? rangeStats.avgPct + "%" : undefined}
-          trendUp={rangeStats.avgUp}
-          positiveIsUp={false}
+          value={`$${kpis.avgCostArticle.toFixed(3)}`}
           icon={TrendingDown}
           iconColor="text-emerald-400"
-          sparkData={rangeStats.avgSpark}
+          sparkData={sparkData.avgArticle}
           sparkColor="#34d399"
         />
         <KpiCard
-          label="Avg Quality Score"
-          value={qualStats.avg > 0 ? `${qualStats.avg.toFixed(1)}` : "—"}
-          trend={qualStats.qualPct !== undefined ? qualStats.qualPct + "%" : undefined}
-          trendUp={qualStats.qualUp}
-          positiveIsUp={true}
-          icon={Star}
+          label="Avg Cost / Word"
+          value={`$${kpis.avgCostWord.toFixed(6)}`}
+          icon={Type}
           iconColor="text-purple-400"
-          sparkData={qualStats.spark}
+          sparkData={sparkData.avgWord}
           sparkColor="#a78bfa"
         />
       </div>
 
-      {/* Charts row */}
+      {/* ── 2. Cost Trend Chart + 3. Model Breakdown ────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Area chart — cost over time */}
+        {/* Line chart — cost over time, stacked by model */}
         <Card className="bg-zinc-900 border-zinc-800/80 xl:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-white">Cost Over Time</CardTitle>
-              {showComparison && (
-                <div className="flex items-center gap-3 text-xs text-zinc-500">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-0.5 bg-amber-400 rounded" /> Current
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 border-t border-dashed border-zinc-500" /> Previous
-                  </span>
-                </div>
-              )}
+              <CardTitle className="text-sm font-semibold text-white">Cost Trend</CardTitle>
+              <div className="flex items-center gap-0.5 bg-zinc-800 border border-zinc-700/60 rounded-lg p-0.5">
+                {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
+                  <Button
+                    key={g}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setGranularity(g)}
+                    className={`h-6 px-2.5 text-xs rounded-md transition-colors capitalize ${
+                      granularity === g
+                        ? "bg-zinc-700 text-white"
+                        : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                    }`}
+                  >
+                    {g}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            {!hasHistory || filteredDays.length === 0 ? (
-              <div className="flex items-center justify-center h-[200px] text-zinc-600 text-sm">
-                No pipeline runs yet in this period
+            {chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-[240px] text-zinc-600 text-sm">
+                No cost data available
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.04} />
-                    </linearGradient>
-                    {showComparison && (
-                      <linearGradient id="prevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#71717a" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#71717a" stopOpacity={0} />
-                      </linearGradient>
-                    )}
-                  </defs>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                   <XAxis
-                    dataKey="date"
+                    dataKey="bucket"
                     tick={{ fill: "#52525b", fontSize: 10 }}
-                    tickFormatter={(v: string) => v.slice(5)}
+                    tickFormatter={(v: string) => {
+                      if (granularity === "daily") return v.slice(5);
+                      if (granularity === "weekly") return v.replace(/^\d{4}-/, "");
+                      return v;
+                    }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
@@ -770,34 +511,29 @@ export default function CostsPage() {
                   <Tooltip
                     contentStyle={CHART_TOOLTIP_STYLE}
                     labelStyle={TOOLTIP_LABEL_STYLE}
-                    itemStyle={TOOLTIP_ITEM_STYLE}
                     formatter={(value: unknown, name: unknown) => [
-                      `$${(value as number).toFixed(3)}`,
-                      name === "prevCost" ? "Prev period" : "Cost",
+                      `$${(value as number).toFixed(4)}`,
+                      name as string,
                     ]}
-                    labelFormatter={(l: unknown) => `${l}`}
                   />
-                  {showComparison && (
-                    <Area
+                  <Legend
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                    iconSize={8}
+                    iconType="circle"
+                  />
+                  {modelKeys.map((model, i) => (
+                    <Line
+                      key={model}
                       type="monotone"
-                      dataKey="prevCost"
-                      stroke="#52525b"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 3"
-                      fill="url(#prevGrad)"
+                      dataKey={model}
+                      name={model}
+                      stroke={getModelColor(model, i)}
+                      strokeWidth={2}
                       dot={false}
+                      activeDot={{ r: 3, strokeWidth: 2, stroke: "#18181b" }}
                     />
-                  )}
-                  <Area
-                    type="monotone"
-                    dataKey="cost"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    fill="url(#costGrad)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: "#f59e0b", stroke: "#18181b", strokeWidth: 2 }}
-                  />
-                </AreaChart>
+                  ))}
+                </LineChart>
               </ResponsiveContainer>
             )}
           </CardContent>
@@ -806,25 +542,25 @@ export default function CostsPage() {
         {/* Donut — model distribution */}
         <Card className="bg-zinc-900 border-zinc-800/80">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-white">Cost by Model</CardTitle>
+            <CardTitle className="text-sm font-semibold text-white">Model Breakdown</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             {modelShares.length === 0 ? (
               <div className="flex items-center justify-center h-[160px] text-zinc-600 text-sm">
-                No pipeline data yet
+                No model data
               </div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={160}>
+                <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie
                       data={modelShares}
                       cx="50%"
                       cy="50%"
-                      innerRadius={42}
-                      outerRadius={68}
+                      innerRadius={45}
+                      outerRadius={72}
                       paddingAngle={3}
-                      dataKey="value"
+                      dataKey="absValue"
                       strokeWidth={0}
                     >
                       {modelShares.map((entry, i) => (
@@ -834,26 +570,39 @@ export default function CostsPage() {
                     <Tooltip
                       contentStyle={CHART_TOOLTIP_STYLE}
                       labelStyle={TOOLTIP_LABEL_STYLE}
-                      itemStyle={TOOLTIP_ITEM_STYLE}
-                      formatter={(value: unknown) => [`${value}%`, ""]}
+                      formatter={(value: unknown, _name: unknown, props: unknown) => {
+                        const payload = (props as { payload?: { name?: string; value?: number } })?.payload;
+                        return [
+                          `$${(value as number).toFixed(4)} (${payload?.value ?? 0}%)`,
+                          payload?.name ?? "",
+                        ];
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="space-y-1.5 w-full mt-1">
+                <div className="space-y-2 w-full mt-2">
                   {modelShares.map((m) => (
                     <div key={m.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
-                        <span className="text-zinc-400 text-xs">{m.name}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: m.color }}
+                        />
+                        <span className="text-zinc-400 truncate">{m.name}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-zinc-800 rounded-full h-1">
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span className="text-zinc-500 tabular-nums text-xs">
+                          ${m.absValue.toFixed(2)}
+                        </span>
+                        <div className="w-14 bg-zinc-800 rounded-full h-1">
                           <div
                             className="h-1 rounded-full"
                             style={{ width: `${m.value}%`, backgroundColor: m.color }}
                           />
                         </div>
-                        <span className="text-white font-semibold text-xs w-7 text-right tabular-nums">{m.value}%</span>
+                        <span className="text-white font-semibold text-xs w-8 text-right tabular-nums">
+                          {m.value}%
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -864,293 +613,205 @@ export default function CostsPage() {
         </Card>
       </div>
 
-      {/* Stage cost horizontal bar — avg per article, individual step granularity */}
-      <Card className="bg-zinc-900 border-zinc-800/80">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-white">Cost by Pipeline Stage</CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-zinc-500">avg per article · all time</span>
-              <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-xs">
-                {realStageCosts.length > 0 ? `${ghCosts?.entries.length ?? 0} runs` : "no data"}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {realStageCosts.length === 0 ? (
-            <div className="flex items-center justify-center h-[220px] text-zinc-600 text-xs">
-              No production runs in this period
-            </div>
-          ) : (
-          <ResponsiveContainer width="100%" height={Math.max(220, realStageCosts.length * 26)}>
-            <BarChart data={realStageCosts} layout="vertical" margin={{ top: 0, right: 70, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
-              <XAxis
-                type="number"
-                tick={{ fill: "#52525b", fontSize: 10 }}
-                tickFormatter={(v: number) => `$${v.toFixed(4)}`}
-              />
-              <YAxis
-                type="category"
-                dataKey="stage"
-                tick={{ fill: "#a1a1aa", fontSize: 10 }}
-                width={185}
-              />
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_STYLE}
-                labelStyle={TOOLTIP_LABEL_STYLE}
-                itemStyle={TOOLTIP_ITEM_STYLE}
-                formatter={(value: unknown, _name: unknown, props: unknown) => {
-                  const entry = (props as { payload?: { total?: number } })?.payload;
-                  const avg = value as number;
-                  const total = entry?.total ?? 0;
-                  return [
-                    <span key="v">
-                      <span className="text-amber-400 font-bold">${avg.toFixed(5)}</span>
-                      <span className="text-zinc-500 ml-2 text-xs">avg · ${total.toFixed(4)} total</span>
-                    </span>,
-                    "Avg / article",
-                  ];
-                }}
-              />
-              <Bar dataKey="cost" radius={[0, 3, 3, 0]} label={{ position: "right", fill: "#71717a", fontSize: 9, formatter: (v: unknown) => `$${(v as number).toFixed(5)}` }}>
-                {realStageCosts.map((_, i) => {
-                  const palette = ["#f59e0b", "#6366f1", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c", "#22d3ee"];
-                  return <Cell key={i} fill={palette[i % palette.length]} fillOpacity={0.85} />;
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* byStep detail table — calls, tokensIn, tokensOut, cost, % */}
-      {realStepDetails.rows.length > 0 && (
-        <Card className="bg-zinc-900 border-zinc-800/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-white">Pipeline Step Breakdown</CardTitle>
-              <Badge variant="outline" className="border-emerald-800/50 text-emerald-500 text-xs">
-                {RANGE_LABELS[range]} · {realStepDetails.count} run{realStepDetails.count !== 1 ? "s" : ""}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-800/60">
-                    <th className="px-4 py-2.5 text-left text-zinc-500 font-medium">Step</th>
-                    <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Calls</th>
-                    <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Tokens IN</th>
-                    <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Tokens OUT</th>
-                    <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Cost USD</th>
-                    <th className="px-4 py-2.5 text-right text-zinc-500 font-medium w-40">% of total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {realStepDetails.rows.map((row) => (
-                    <tr key={row.step} className="border-b border-zinc-800/40 hover:bg-zinc-800/20 transition-colors">
-                      <td className="px-4 py-2.5 text-zinc-200 font-medium">{row.step}</td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 tabular-nums">{row.calls.toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 tabular-nums">{row.tokensIn.toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 tabular-nums">{row.tokensOut.toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-right text-amber-400 font-medium tabular-nums">${row.cost.toFixed(4)}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-20 bg-zinc-800 rounded-full h-1.5">
-                            <div
-                              className="h-1.5 rounded-full bg-amber-500/70"
-                              style={{ width: `${Math.max(2, row.pct)}%` }}
-                            />
-                          </div>
-                          <span className="text-zinc-500 tabular-nums w-10 text-right">{row.pct.toFixed(1)}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Articles table */}
+      {/* ── 4. Run Detail Table ─────────────────────────────────────────── */}
       <Card className="bg-zinc-900 border-zinc-800/80">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-sm font-semibold text-white">
-            Articles <span className="text-zinc-600 font-normal ml-1">({sortedArticles.length})</span>
+            Run Details{" "}
+            <span className="text-zinc-600 font-normal ml-1">({entries.length})</span>
           </CardTitle>
-          <div className="flex items-center gap-2">
-            {ghCostsLoading && (
-              <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs gap-1 animate-pulse">
-                <Clock className="w-2.5 h-2.5" />
-                loading production data…
-              </Badge>
-            )}
-            {!ghCostsLoading && ghCosts && (
-              <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 text-xs gap-1">
-                <CheckCircle2 className="w-2.5 h-2.5" />
-                {ghCosts.entries.length} production runs
-              </Badge>
-            )}
-            <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs gap-1">
-              <Zap className="w-2.5 h-2.5" />
-              {sortedArticles.filter(a => a.status === "published").length} published
-            </Badge>
-          </div>
+          <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 text-xs">
+            {entries.length} production runs
+          </Badge>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800/60">
-                  <th
-                    className="px-4 py-2.5 text-left text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 transition-colors"
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-zinc-800/60 hover:bg-transparent">
+                  <TableHead className="w-8" />
+                  <TableHead
+                    className="cursor-pointer hover:text-zinc-300 transition-colors"
                     onClick={() => toggleSort("date")}
                   >
-                    <div className="flex items-center gap-1">Date <ArrowUpDown className="w-3 h-3" /></div>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-zinc-500 font-medium">Title</th>
-                  <th className="px-4 py-2.5 text-left text-zinc-500 font-medium">Model</th>
-                  <th
-                    className="px-4 py-2.5 text-right text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 transition-colors"
+                    <div className="flex items-center gap-1">
+                      Date
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
                     onClick={() => toggleSort("cost")}
                   >
-                    <div className="flex items-center justify-end gap-1">Cost <ArrowUpDown className="w-3 h-3" /></div>
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Tokens</th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Calls</th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Words</th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">$/1k w</th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">Duration</th>
-                  <th className="px-4 py-2.5 text-right text-zinc-500 font-medium">LLM%</th>
-                  <th
-                    className="px-4 py-2.5 text-right text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 transition-colors"
-                    onClick={() => toggleSort("quality")}
+                    <div className="flex items-center justify-end gap-1">
+                      Total Cost
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
+                    onClick={() => toggleSort("tokens")}
                   >
-                    <div className="flex items-center justify-end gap-1">Quality <ArrowUpDown className="w-3 h-3" /></div>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-zinc-500 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ghCostsLoading && sortedArticles.length === 0 ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i} className="border-b border-zinc-800/40 animate-pulse">
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-20" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-48" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-28" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-12 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-14 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-8 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-10 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-10 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-12 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-8 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-3 bg-zinc-800 rounded w-8 ml-auto" /></td>
-                      <td className="px-4 py-2.5"><div className="h-5 bg-zinc-800 rounded w-16" /></td>
-                    </tr>
-                  ))
-                ) : sortedArticles.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-zinc-600 text-xs">
-                      {hasHistory ? "No articles in this period" : "No pipeline runs yet"}
-                    </td>
-                  </tr>
-                ) : pagedArticles.map((article) => {
-                  const sc = STATUS_CONFIG[article.status];
-                  const totalTokens = (article.tokensIn ?? 0) + (article.tokensOut ?? 0);
-                  const avgCost = sortedArticles.length > 3
-                    ? sortedArticles.reduce((s, a) => s + a.totalCost, 0) / sortedArticles.length
-                    : Infinity;
-                  const isOutlier = article.totalCost > 0 && article.totalCost > avgCost * 2;
-                  return (
-                    <tr
-                      key={article.id}
-                      className={`border-b border-zinc-800/40 hover:bg-zinc-800/30 transition-colors group ${isOutlier ? "bg-rose-950/20" : ""}`}
-                    >
-                      <td className="px-4 py-2.5 text-zinc-600 whitespace-nowrap tabular-nums">{article.date}</td>
-                      <td className="px-4 py-2.5 text-zinc-200 max-w-[240px] group-hover:text-white transition-colors">
-                        {article.url ? (
-                          <a
-                            href={article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 hover:text-amber-400 transition-colors"
-                          >
-                            <span className="truncate">{article.title}</span>
-                            <ExternalLink className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
-                          </a>
-                        ) : (
-                          <span className="truncate block">{article.title}</span>
+                    <div className="flex items-center justify-end gap-1">
+                      Tokens
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
+                    onClick={() => toggleSort("duration")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Duration
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
+                    onClick={() => toggleSort("costPerWord")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      $/Word
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagedEntries.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-zinc-600 py-8">
+                      No pipeline runs recorded
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pagedEntries.map((entry, idx) => {
+                    const key = entryKey(entry, page * PAGE_SIZE + idx);
+                    const isExpanded = expandedRow === key;
+                    const stepEntries = Object.entries(entry.byStep ?? {})
+                      .filter(([, m]) => (m as ByStepMetrics)?.costUSD !== undefined)
+                      .sort(
+                        ([, a], [, b]) =>
+                          ((b as ByStepMetrics).costUSD ?? 0) - ((a as ByStepMetrics).costUSD ?? 0),
+                      );
+
+                    return (
+                      <Fragment key={key}>
+                        <TableRow
+                          className="border-b border-zinc-800/40 hover:bg-zinc-800/30 transition-colors cursor-pointer group"
+                          onClick={() => toggleExpand(key)}
+                        >
+                          <TableCell className="w-8 px-2">
+                            {stepEntries.length > 0 && (
+                              isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                              )
+                            )}
+                          </TableCell>
+                          <TableCell className="text-zinc-500 tabular-nums">
+                            {entry.date.slice(0, 10)}
+                          </TableCell>
+                          <TableCell className="text-zinc-200 max-w-[280px] group-hover:text-white transition-colors">
+                            {entry.url ? (
+                              <a
+                                href={entry.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 hover:text-amber-400 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="truncate">{entry.title}</span>
+                                <ExternalLink className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
+                              </a>
+                            ) : (
+                              <span className="truncate block">{entry.title}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-amber-400 font-medium tabular-nums">
+                            ${entry.totalCostUSD.toFixed(4)}
+                          </TableCell>
+                          <TableCell className="text-right text-zinc-500 tabular-nums">
+                            {entry.totalTokens.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right text-zinc-500 tabular-nums">
+                            {entry.durationMs > 0 ? formatDuration(entry.durationMs) : "---"}
+                          </TableCell>
+                          <TableCell className="text-right text-zinc-500 tabular-nums">
+                            ${(entry.costPerWord ?? 0).toFixed(6)}
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Expanded: per-step breakdown */}
+                        {isExpanded && stepEntries.length > 0 && (
+                          <TableRow className="bg-zinc-950/50 hover:bg-zinc-950/50">
+                            <TableCell colSpan={7} className="p-0">
+                              <div className="px-6 py-3 ml-8 border-l-2 border-zinc-700/50">
+                                <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
+                                  Step Breakdown
+                                </p>
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-zinc-600">
+                                      <th className="text-left pb-1.5 font-medium">Step</th>
+                                      <th className="text-right pb-1.5 font-medium">Calls</th>
+                                      <th className="text-right pb-1.5 font-medium">Tokens In</th>
+                                      <th className="text-right pb-1.5 font-medium">Tokens Out</th>
+                                      <th className="text-right pb-1.5 font-medium">Cost</th>
+                                      <th className="text-right pb-1.5 font-medium">Duration</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {stepEntries.map(([step, metrics]) => {
+                                      const m = metrics as ByStepMetrics;
+                                      return (
+                                        <tr
+                                          key={step}
+                                          className="border-t border-zinc-800/30 hover:bg-zinc-800/20"
+                                        >
+                                          <td className="py-1.5 text-zinc-300 font-medium">
+                                            {step}
+                                          </td>
+                                          <td className="py-1.5 text-right text-zinc-500 tabular-nums">
+                                            {m.calls ?? "---"}
+                                          </td>
+                                          <td className="py-1.5 text-right text-zinc-500 tabular-nums">
+                                            {(m.tokensIn ?? 0).toLocaleString()}
+                                          </td>
+                                          <td className="py-1.5 text-right text-zinc-500 tabular-nums">
+                                            {(m.tokensOut ?? 0).toLocaleString()}
+                                          </td>
+                                          <td className="py-1.5 text-right text-amber-400/80 font-medium tabular-nums">
+                                            ${(m.costUSD ?? 0).toFixed(4)}
+                                          </td>
+                                          <td className="py-1.5 text-right text-zinc-500 tabular-nums">
+                                            {m.durationMs ? formatDuration(m.durationMs) : "---"}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </td>
-                      <td className="px-4 py-2.5 text-zinc-500 whitespace-nowrap text-xs">{article.model}</td>
-                      <td className="px-4 py-2.5 text-right text-amber-400 font-medium whitespace-nowrap tabular-nums">
-                        ${article.totalCost.toFixed(4)}{isOutlier ? " ⚠" : ""}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {totalTokens > 0 ? totalTokens.toLocaleString() : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {article.totalCalls ?? "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {article.wordCount ? article.wordCount.toLocaleString() : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {article.costPerWord ? `$${(article.costPerWord * 1000).toFixed(3)}` : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {article.durationMs ? `${(article.durationMs / 60000).toFixed(1)}m` : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-zinc-500 whitespace-nowrap tabular-nums">
-                        {article.llmTimeRatio ? `${(article.llmTimeRatio * 100).toFixed(0)}%` : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        {article.qualityScore > 0 ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <div className="w-10 bg-zinc-800 rounded-full h-1">
-                              <div
-                                className={`h-1 rounded-full ${
-                                  article.qualityScore >= 85 ? "bg-emerald-500" :
-                                  article.qualityScore >= 75 ? "bg-amber-500" : "bg-rose-500"
-                                }`}
-                                style={{ width: `${article.qualityScore}%` }}
-                              />
-                            </div>
-                            <span className={`font-semibold tabular-nums ${
-                              article.qualityScore >= 85 ? "text-emerald-400" :
-                              article.qualityScore >= 75 ? "text-amber-400" : "text-rose-400"
-                            }`}>
-                              {article.qualityScore}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <Badge variant="outline" className={`text-xs gap-1 ${sc.color}`}>
-                          <sc.icon className="w-2.5 h-2.5" />
-                          {sc.label}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </Fragment>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
-          {/* Pagination footer */}
+
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/60">
               <span className="text-xs text-zinc-600">
-                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedArticles.length)} of {sortedArticles.length} articles
+                {page * PAGE_SIZE + 1}--{Math.min((page + 1) * PAGE_SIZE, sortedEntries.length)} of{" "}
+                {sortedEntries.length} runs
               </span>
               <div className="flex items-center gap-1">
                 <Button
@@ -1162,21 +823,34 @@ export default function CostsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <Button
-                    key={i}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPage(i)}
-                    className={`h-7 w-7 p-0 text-xs rounded-md transition-colors ${
-                      i === page
-                        ? "bg-zinc-700 text-white"
-                        : "text-zinc-500 hover:text-white hover:bg-zinc-800"
-                    }`}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
+                {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
+                  // Show pages around current page
+                  let pageIdx: number;
+                  if (totalPages <= 7) {
+                    pageIdx = i;
+                  } else if (page < 4) {
+                    pageIdx = i;
+                  } else if (page > totalPages - 5) {
+                    pageIdx = totalPages - 7 + i;
+                  } else {
+                    pageIdx = page - 3 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageIdx}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPage(pageIdx)}
+                      className={`h-7 w-7 p-0 text-xs rounded-md transition-colors ${
+                        pageIdx === page
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                      }`}
+                    >
+                      {pageIdx + 1}
+                    </Button>
+                  );
+                })}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1184,7 +858,7 @@ export default function CostsPage() {
                   disabled={page === totalPages - 1}
                   className="h-7 w-7 p-0 text-zinc-500 hover:text-white disabled:opacity-30"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRightPage className="w-4 h-4" />
                 </Button>
               </div>
             </div>
