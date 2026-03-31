@@ -40,23 +40,23 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const { path: segments } = await params;
+  const relativePath = segments.join("/");
+
+  if (!ALLOWED_PATHS.has(relativePath)) {
+    return NextResponse.json(
+      { error: `Path not allowed: ${relativePath}` },
+      { status: 403 }
+    );
+  }
+
+  // social-distributor paths are already repo-root-relative; others live under data/
+  const repoPath = relativePath.startsWith("social-distributor/")
+    ? relativePath
+    : `data/${relativePath}`;
+  const parseAs = relativePath.endsWith(".jsonl") ? "jsonl" : "json";
+
   try {
-    const { path: segments } = await params;
-    const relativePath = segments.join("/");
-
-    if (!ALLOWED_PATHS.has(relativePath)) {
-      return NextResponse.json(
-        { error: `Path not allowed: ${relativePath}` },
-        { status: 403 }
-      );
-    }
-
-    // social-distributor paths are already repo-root-relative; others live under data/
-    const repoPath = relativePath.startsWith("social-distributor/")
-      ? relativePath
-      : `data/${relativePath}`;
-    const parseAs = relativePath.endsWith(".jsonl") ? "jsonl" : "json";
-
     const data = await fetchContentFile(repoPath, { parseAs });
 
     return NextResponse.json({
@@ -71,7 +71,7 @@ export async function GET(
       const emptyData = relativePath.endsWith(".jsonl") ? [] : null;
       return NextResponse.json({
         data: emptyData,
-        path: relativePath.startsWith("social-distributor/") ? relativePath : `data/${relativePath}`,
+        path: repoPath,
         notFound: true,
         fetchedAt: new Date().toISOString(),
       });
