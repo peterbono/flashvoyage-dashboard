@@ -83,15 +83,14 @@ export function CronTimeline() {
         <Clock className="w-3.5 h-3.5 text-zinc-500" />
         <span className="text-xs font-semibold text-zinc-400">Cron Schedule</span>
         <div className="flex items-center gap-2 text-[10px]">
-          <span className="text-zinc-600">UTC {formatTime(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
           <span className="text-blue-400/70">🇫🇷 {utcToParis(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
           <span className="text-amber-400/70">🇹🇭 {utcToBangkok(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
         </div>
         {nextCron && (
           <span className="text-[10px] text-zinc-600 ml-auto">
             Next: <span className="text-zinc-400 font-medium">{nextCron.label}</span>{" "}
-            <span className="text-blue-400/70">{utcToParis(nextCron.utcHour, nextCron.utcMinute)} 🇫🇷</span>{" "}
-            <span className="text-amber-400/70">{utcToBangkok(nextCron.utcHour, nextCron.utcMinute)} 🇹🇭</span>
+            🇫🇷 <span className="text-blue-400/70">{utcToParis(nextCron.utcHour, nextCron.utcMinute)}</span>{" "}
+            🇹🇭 <span className="text-amber-400/70">{utcToBangkok(nextCron.utcHour, nextCron.utcMinute)}</span>
           </span>
         )}
       </div>
@@ -134,7 +133,6 @@ export function CronTimeline() {
               <div className="absolute bottom-full mb-2 hidden group-hover:block z-20">
                 <div className="bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-[10px] text-white whitespace-nowrap shadow-lg space-y-0.5">
                   <div className="font-semibold text-[11px]">{cron.label}</div>
-                  <div className="text-zinc-500">{formatTime(cron.utcHour, cron.utcMinute)} UTC</div>
                   <div className="text-blue-400">🇫🇷 {utcToParis(cron.utcHour, cron.utcMinute)} Paris</div>
                   <div className="text-amber-400">🇹🇭 {utcToBangkok(cron.utcHour, cron.utcMinute)} Bangkok</div>
                   {cron.days && (
