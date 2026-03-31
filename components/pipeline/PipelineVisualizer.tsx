@@ -565,8 +565,8 @@ export default function PipelineVisualizer() {
   return (
     <div className="flex flex-col h-full bg-zinc-950 overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 shrink-0 flex-wrap gap-y-2">
-        <h1 className="text-sm font-semibold text-white mr-1">Pipeline</h1>
+      <div className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-2.5 border-b border-zinc-800 bg-zinc-950 shrink-0 flex-wrap gap-y-2 overflow-x-auto">
+        <h1 className="text-sm font-semibold text-white mr-1 shrink-0">Pipeline</h1>
 
         <div className="w-px h-4 bg-zinc-800" />
 
@@ -582,14 +582,14 @@ export default function PipelineVisualizer() {
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Topic hint (optional)…"
                 title="The real pipeline selects its own topic via editorial-router — this is just a hint"
-                className="h-7 w-64 px-2 text-xs bg-zinc-900 border border-zinc-700 rounded-md text-zinc-400 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 cursor-default"
+                className="h-7 w-40 sm:w-64 px-2 text-xs bg-zinc-900 border border-zinc-700 rounded-md text-zinc-400 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 cursor-default"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { setShowSuggestions(false); executeGitHubRun(); }
                   if (e.key === "Escape") setShowSuggestions(false);
                 }}
               />
               {showSuggestions && (
-                <div className="absolute top-full left-0 mt-1 w-80 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 w-64 sm:w-80 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
                   <div className="px-2 py-1 border-b border-zinc-800">
                     <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium">Queued &amp; sourced articles</span>
                   </div>
@@ -750,7 +750,7 @@ export default function PipelineVisualizer() {
             showInteractive={false}
           />
           <MiniMap
-            className="!bg-zinc-900 !border-zinc-700"
+            className="!bg-zinc-900 !border-zinc-700 !hidden sm:!block"
             nodeColor={(n) => {
               const variant = (n.data as { variant?: string }).variant;
               if (variant === "source") return "#3f3f46";
@@ -761,7 +761,7 @@ export default function PipelineVisualizer() {
           />
 
           {/* Mode label overlay */}
-          <Panel position="top-left" className="mt-10 ml-2 pointer-events-none">
+          <Panel position="top-left" className="mt-10 ml-2 pointer-events-none hidden sm:block">
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5 text-xs text-violet-400/80 bg-violet-950/20 rounded px-2 py-1">
                 <Github className="w-3 h-3" />
@@ -785,7 +785,7 @@ export default function PipelineVisualizer() {
 
         {/* History panel — left side */}
         {showHistory && (
-          <div className="absolute top-0 left-0 h-full w-80 bg-zinc-950 border-r border-zinc-800 flex flex-col z-10 overflow-hidden">
+          <div className="absolute top-0 left-0 h-full w-full sm:w-80 bg-zinc-950 border-r border-zinc-800 flex flex-col z-10 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <span className="text-sm font-semibold text-white">Production Runs</span>
               <button onClick={() => setShowHistory(false)} className="text-zinc-500 hover:text-white transition-colors">

@@ -105,7 +105,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
 
   return (
     <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-zinc-800/60">
         <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
           Queue par ROI ({items.length})
         </h3>
@@ -119,6 +119,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
           {sortBy === "roi" ? "Par ROI" : "Par priorite"}
         </Button>
       </div>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800/60 hover:bg-transparent">
@@ -184,6 +185,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

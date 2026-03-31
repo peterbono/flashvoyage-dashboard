@@ -61,7 +61,7 @@ export function PipelineDetailPanel({ stage, onClose, onRetry }: Props) {
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 320, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="absolute top-0 right-0 h-full w-80 bg-zinc-950 border-l border-zinc-800 flex flex-col z-10 overflow-hidden"
+        className="absolute top-0 right-0 h-full w-full sm:w-80 bg-zinc-950 border-l border-zinc-800 flex flex-col z-10 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">

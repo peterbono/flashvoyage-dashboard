@@ -43,7 +43,7 @@ export function KpiCard({
         </div>
       </CardHeader>
       <CardContent className="pb-0">
-        <div className="text-3xl font-bold text-white tracking-tight">{value}</div>
+        <div className="text-xl md:text-3xl font-bold text-white tracking-tight break-all">{value}</div>
         {trend && (
           <div
             className={`flex items-center gap-1 text-xs mt-1 font-medium ${

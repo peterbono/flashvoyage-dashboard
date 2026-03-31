@@ -82,8 +82,8 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
   const bd = article.scoreBreakdown;
   return (
     <TableRow className="border-zinc-800/40 bg-zinc-900/60">
-      <TableCell colSpan={5} className="py-3 px-6">
-        <div className="grid grid-cols-2 gap-4">
+      <TableCell colSpan={5} className="py-3 px-3 sm:px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Score breakdown */}
           {bd && (
             <div>
@@ -170,25 +170,25 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
   return (
     <div className="space-y-3">
       {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filtrer les articles..."
-            className="bg-zinc-900 border-zinc-700 text-white text-xs h-7 pl-8 w-52 placeholder:text-zinc-600"
+            className="bg-zinc-900 border-zinc-700 text-white text-xs h-7 pl-8 w-full sm:w-52 placeholder:text-zinc-600"
           />
         </div>
 
-        <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 overflow-x-auto max-w-full">
           {lifecycles.map((lc) => (
             <Button
               key={lc}
               variant="ghost"
               size="xs"
               onClick={() => setLifecycleFilter(lc)}
-              className={`h-5 px-1.5 text-[10px] rounded-md transition-colors ${
+              className={`h-5 px-1.5 text-[10px] rounded-md transition-colors shrink-0 ${
                 lifecycleFilter === lc
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-500 hover:text-white hover:bg-zinc-800"
@@ -203,7 +203,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
           variant="ghost"
           size="xs"
           onClick={() => setSortBy(sortBy === "score" ? "traffic" : "score")}
-          className="text-zinc-500 hover:text-white text-xs gap-1 ml-auto"
+          className="text-zinc-500 hover:text-white text-xs gap-1 sm:ml-auto"
         >
           <ArrowUpDown className="w-3 h-3" />
           {sortBy === "score" ? "Par score" : "Par trafic"}
@@ -212,6 +212,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
 
       {/* Table */}
       <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800/60 hover:bg-transparent">
@@ -305,6 +306,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

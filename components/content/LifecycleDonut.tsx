@@ -76,7 +76,7 @@ export function LifecycleDonut({ data }: Props) {
       <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
         Distribution lifecycle
       </h3>
-      <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
         {/* Donut */}
         <div className="relative shrink-0">
           <svg

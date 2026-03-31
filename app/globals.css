@@ -169,3 +169,15 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Safe area bottom padding for iPhone home indicator */
+.safe-area-pb {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+  }
+}

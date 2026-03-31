@@ -65,9 +65,9 @@ export function CronTimeline() {
     .sort((a, b) => cronToMinutes(a) - cronToMinutes(b))[0] ?? null;
 
   return (
-    <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 px-4 py-3">
+    <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 px-3 md:px-4 py-3">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Clock className="w-3.5 h-3.5 text-zinc-500" />
         <span className="text-xs font-semibold text-zinc-400">Cron Schedule (UTC)</span>
         {nextCron && (
@@ -78,8 +78,9 @@ export function CronTimeline() {
         )}
       </div>
 
-      {/* Timeline strip */}
-      <div className="relative h-10 bg-zinc-900 rounded-lg overflow-hidden">
+      {/* Timeline strip — horizontal scroll on mobile */}
+      <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
+      <div className="relative h-10 bg-zinc-900 rounded-lg overflow-hidden min-w-[500px]">
         {/* Hour tick marks */}
         {Array.from({ length: 24 }, (_, h) => (
           <div
@@ -146,9 +147,10 @@ export function CronTimeline() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Legend row */}
-      <div className="flex items-center gap-3 mt-2 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
         {CRONS.map((cron) => (
           <div key={cron.id} className="flex items-center gap-1">
             <div className={`w-1.5 h-1.5 rounded-full ${cron.color}`} />

@@ -110,16 +110,16 @@ export default function TasksPage() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
         <h1 className="text-sm font-semibold text-white tracking-tight mr-1">Tasks</h1>
 
         {/* Progress pill */}
         <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/80 rounded-full px-3 py-1">
-          <div className="w-20 bg-zinc-800 rounded-full h-1">
+          <div className="w-16 sm:w-20 bg-zinc-800 rounded-full h-1">
             <div className="bg-emerald-500 h-1 rounded-full transition-all" style={{ width: `${donePct}%` }} />
           </div>
           <span className="text-xs text-zinc-500 tabular-nums">
-            {tasks.filter((t) => t.column === "done").length}/{tasks.length} done
+            {tasks.filter((t) => t.column === "done").length}/{tasks.length}
           </span>
         </div>
 
@@ -127,35 +127,36 @@ export default function TasksPage() {
         {urgentCount > 0 && (
           <div className="flex items-center gap-1 text-xs text-red-400 bg-red-950/30 border border-red-900/40 rounded-full px-2.5 py-1">
             <Flame className="w-2.5 h-2.5" />
-            <span className="tabular-nums font-medium">{urgentCount} urgent</span>
+            <span className="tabular-nums font-medium">{urgentCount}</span>
           </div>
         )}
         {overdueCount > 0 && (
           <div className="flex items-center gap-1 text-xs text-orange-400 bg-orange-950/30 border border-orange-900/40 rounded-full px-2.5 py-1">
             <AlertTriangle className="w-2.5 h-2.5" />
-            <span className="tabular-nums font-medium">{overdueCount} overdue</span>
+            <span className="tabular-nums font-medium">{overdueCount}</span>
           </div>
         )}
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto order-last sm:order-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tasks..."
-            className="bg-zinc-900 border-zinc-700 text-white text-xs h-7 pl-8 w-48 placeholder:text-zinc-600"
+            className="bg-zinc-900 border-zinc-700 text-white text-xs h-7 pl-8 w-full sm:w-48 placeholder:text-zinc-600"
           />
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto order-first sm:order-none">
           <Button
             size="sm"
             className="bg-amber-500 hover:bg-amber-400 text-black font-medium h-7 px-3 gap-1.5 text-xs"
             onClick={() => setAddOpen(true)}
           >
             <Plus className="w-3.5 h-3.5" />
-            Add Task
+            <span className="hidden sm:inline">Add Task</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
@@ -168,7 +169,7 @@ export default function TasksPage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-3 h-full p-4 min-w-max">
+          <div className="flex gap-3 h-full p-3 sm:p-4 min-w-max">
             {TASK_COLUMNS.map((col) => {
               const colTasks = tasksByColumn[col.id];
               return (

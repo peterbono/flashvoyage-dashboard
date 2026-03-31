@@ -408,6 +408,7 @@ export function ManualControl({ abTests, loading }: Props) {
               {hasActiveTests && (
                 <div>
                   <span className="text-xs text-zinc-500 font-medium mb-2 block">Tests actifs</span>
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-800">
@@ -435,12 +436,14 @@ export function ManualControl({ abTests, loading }: Props) {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               )}
 
               {hasCompletedTests && (
                 <div>
                   <span className="text-xs text-zinc-500 font-medium mb-2 block">Tests termines</span>
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-800">
@@ -465,6 +468,7 @@ export function ManualControl({ abTests, loading }: Props) {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               )}
             </div>

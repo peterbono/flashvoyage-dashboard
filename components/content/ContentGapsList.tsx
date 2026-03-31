@@ -66,11 +66,12 @@ export function ContentGapsList({ items, loading, error }: Props) {
 
   return (
     <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-zinc-800/60">
+      <div className="px-3 sm:px-4 py-2.5 border-b border-zinc-800/60">
         <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
           Top content gaps ({items.length})
         </h3>
       </div>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800/60 hover:bg-transparent">
@@ -113,6 +114,7 @@ export function ContentGapsList({ items, loading, error }: Props) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

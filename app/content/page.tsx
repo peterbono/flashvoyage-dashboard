@@ -145,7 +145,7 @@ export default function ContentPage() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
         <h1 className="text-sm font-semibold text-white tracking-tight mr-1">
           Content Intelligence
         </h1>
@@ -174,28 +174,30 @@ export default function ContentPage() {
         onValueChange={(v) => setActiveTab(v as string)}
         className="flex flex-col flex-1 overflow-hidden"
       >
-        <div className="px-4 pt-3 shrink-0">
+        <div className="px-3 sm:px-4 pt-3 shrink-0 overflow-x-auto">
           <TabsList variant="line" className="gap-0">
             <TabsTrigger
               value="quoi-ecrire"
-              className="text-xs gap-1.5 px-3 data-active:text-amber-400"
+              className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-amber-400"
             >
-              <Lightbulb className="w-3.5 h-3.5" />
-              Quoi ecrire
+              <Lightbulb className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Quoi ecrire</span>
+              <span className="sm:hidden">Ecrire</span>
             </TabsTrigger>
             <TabsTrigger
               value="portfolio"
-              className="text-xs gap-1.5 px-3 data-active:text-emerald-400"
+              className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-emerald-400"
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               Portfolio
             </TabsTrigger>
             <TabsTrigger
               value="auto-executor"
-              className="text-xs gap-1.5 px-3 data-active:text-violet-400"
+              className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-violet-400"
             >
-              <Bot className="w-3.5 h-3.5" />
-              Auto-Executor
+              <Bot className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Auto-Executor</span>
+              <span className="sm:hidden">Auto</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -205,7 +207,7 @@ export default function ContentPage() {
         {/* ================================================================ */}
         <TabsContent
           value="quoi-ecrire"
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4"
         >
           {/* Article injector form */}
           <ArticleInjectorForm onSubmitted={handleQueueSubmitted} />
@@ -237,7 +239,7 @@ export default function ContentPage() {
         {/* ================================================================ */}
         <TabsContent
           value="portfolio"
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4"
         >
           {/* Lifecycle donut + Competitor moves side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -262,7 +264,7 @@ export default function ContentPage() {
         {/* ================================================================ */}
         <TabsContent
           value="auto-executor"
-          className="flex-1 overflow-y-auto px-4 py-4"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4"
         >
           <AutoExecutorLog
             entries={executorLog.data?.data ?? []}

@@ -39,9 +39,10 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delay={0}>
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
       <aside
         className={cn(
-          "flex flex-col h-screen shrink-0 transition-all duration-300",
+          "hidden md:flex flex-col h-screen shrink-0 transition-all duration-300",
           "bg-gray-50 border-r border-gray-200",
           "dark:bg-[#111111] dark:border-zinc-800/50",
           sidebarCollapsed ? "w-14" : "w-52"
@@ -121,7 +122,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* ⌘K hint */}
+        {/* Command K hint */}
         {!sidebarCollapsed && (
           <div className="px-2 pb-2">
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-gray-100 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800/60 text-xs text-gray-400 dark:text-zinc-600 cursor-default select-none">
@@ -162,6 +163,28 @@ export function Sidebar() {
           </Tooltip>
         </div>
       </aside>
+
+      {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-gray-50 dark:bg-[#111111] border-t border-gray-200 dark:border-zinc-800/50 px-1 py-1 safe-area-pb">
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg min-w-[48px] transition-colors",
+                isActive
+                  ? "text-amber-500"
+                  : "text-gray-400 dark:text-zinc-500"
+              )}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </TooltipProvider>
   );
 }

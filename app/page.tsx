@@ -101,7 +101,7 @@ export default function CommandCenter() {
     : null;
 
   return (
-    <div className="p-6 space-y-4 w-full max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-4 w-full max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 dark:bg-amber-500/10">

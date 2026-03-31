@@ -102,20 +102,22 @@ export default function ReelsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
         <Tabs defaultValue="calendar">
-          <TabsList variant="line" className="mb-4">
-            <TabsTrigger value="calendar" className="gap-1.5">
+          <TabsList variant="line" className="mb-4 overflow-x-auto">
+            <TabsTrigger value="calendar" className="gap-1.5 text-xs sm:text-sm">
               <CalendarDays className="w-3.5 h-3.5" />
-              Calendrier
+              <span className="hidden sm:inline">Calendrier</span>
+              <span className="sm:hidden">Cal.</span>
             </TabsTrigger>
-            <TabsTrigger value="performance" className="gap-1.5">
+            <TabsTrigger value="performance" className="gap-1.5 text-xs sm:text-sm">
               <BarChart3 className="w-3.5 h-3.5" />
-              Performance
+              Perf.
             </TabsTrigger>
-            <TabsTrigger value="control" className="gap-1.5">
+            <TabsTrigger value="control" className="gap-1.5 text-xs sm:text-sm">
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              Controle
+              <span className="hidden sm:inline">Controle</span>
+              <span className="sm:hidden">Ctrl</span>
             </TabsTrigger>
           </TabsList>
 

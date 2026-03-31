@@ -169,72 +169,77 @@ export function ReelCalendar({ history, loading }: Props) {
             </div>
           ) : (
             <>
-              {/* Day headers */}
-              <div className="grid grid-cols-7 gap-px mb-1">
-                {DAY_HEADERS.map((d) => (
-                  <div key={d} className="text-center text-xs text-zinc-600 font-medium py-1">
-                    {d}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-px">
-                {/* Empty cells before first day */}
-                {Array.from({ length: firstDay }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-20 bg-zinc-900/30 rounded" />
-                ))}
-
-                {/* Day cells */}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                  const dayReels = reelsByDate[dateKey] ?? [];
-                  const isToday = dateKey === todayStr;
-
-                  return (
-                    <div
-                      key={day}
-                      className={`h-20 rounded border transition-colors p-1 ${
-                        isToday
-                          ? "border-amber-500/50 bg-amber-500/5"
-                          : "border-zinc-800/40 bg-zinc-900/30 hover:border-zinc-700/60"
-                      }`}
-                    >
-                      <span className={`text-xs tabular-nums ${isToday ? "text-amber-400 font-semibold" : "text-zinc-500"}`}>
-                        {day}
-                      </span>
-
-                      {/* Reel dots — up to 3 */}
-                      <div className="flex flex-col gap-0.5 mt-1">
-                        {dayReels.slice(0, 3).map((reel, ri) => {
-                          const style = getFormatStyle(reel.format);
-                          return (
-                            <button
-                              key={ri}
-                              onClick={() => setSelectedReel(reel)}
-                              className={`flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:ring-1 hover:ring-zinc-600 ${style.bg}`}
-                              title={`${style.label} (${reel.slot})`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
-                              <span className={`text-[9px] leading-none truncate ${style.text}`}>
-                                {style.label}
-                              </span>
-                            </button>
-                          );
-                        })}
+              {/* Horizontal scroll wrapper for small screens */}
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="min-w-[420px]">
+                  {/* Day headers */}
+                  <div className="grid grid-cols-7 gap-px mb-1">
+                    {DAY_HEADERS.map((d) => (
+                      <div key={d} className="text-center text-[10px] sm:text-xs text-zinc-600 font-medium py-1">
+                        {d}
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+
+                  {/* Calendar grid */}
+                  <div className="grid grid-cols-7 gap-px">
+                    {/* Empty cells before first day */}
+                    {Array.from({ length: firstDay }).map((_, i) => (
+                      <div key={`empty-${i}`} className="h-14 sm:h-20 bg-zinc-900/30 rounded" />
+                    ))}
+
+                    {/* Day cells */}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                      const dayReels = reelsByDate[dateKey] ?? [];
+                      const isToday = dateKey === todayStr;
+
+                      return (
+                        <div
+                          key={day}
+                          className={`h-14 sm:h-20 rounded border transition-colors p-1 ${
+                            isToday
+                              ? "border-amber-500/50 bg-amber-500/5"
+                              : "border-zinc-800/40 bg-zinc-900/30 hover:border-zinc-700/60"
+                          }`}
+                        >
+                          <span className={`text-[10px] sm:text-xs tabular-nums ${isToday ? "text-amber-400 font-semibold" : "text-zinc-500"}`}>
+                            {day}
+                          </span>
+
+                          {/* Reel dots — up to 3 */}
+                          <div className="flex flex-col gap-0.5 mt-0.5 sm:mt-1">
+                            {dayReels.slice(0, 3).map((reel, ri) => {
+                              const style = getFormatStyle(reel.format);
+                              return (
+                                <button
+                                  key={ri}
+                                  onClick={() => setSelectedReel(reel)}
+                                  className={`flex items-center gap-0.5 sm:gap-1 rounded px-0.5 sm:px-1 py-0.5 transition-colors hover:ring-1 hover:ring-zinc-600 ${style.bg}`}
+                                  title={`${style.label} (${reel.slot})`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+                                  <span className={`text-[8px] sm:text-[9px] leading-none truncate ${style.text}`}>
+                                    {style.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Legend */}
-              <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-zinc-800/50">
+              <div className="flex flex-wrap gap-2 sm:gap-3 mt-4 pt-3 border-t border-zinc-800/50">
                 {Object.entries(FORMAT_COLORS).map(([key, val]) => (
                   <div key={key} className="flex items-center gap-1.5">
                     <span className={`w-2 h-2 rounded-full ${val.dot}`} />
-                    <span className="text-xs text-zinc-500">{val.label}</span>
+                    <span className="text-[10px] sm:text-xs text-zinc-500">{val.label}</span>
                   </div>
                 ))}
               </div>

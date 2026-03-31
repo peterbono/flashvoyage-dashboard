@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -26,6 +26,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -44,7 +50,7 @@ export default function RootLayout({
         <ThemeProvider>
           <div className="flex h-full overflow-hidden bg-white dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100">
             <Sidebar />
-            <main className="flex-1 overflow-auto bg-white dark:bg-[#0a0a0a]">
+            <main className="flex-1 overflow-auto bg-white dark:bg-[#0a0a0a] pb-16 md:pb-0">
               <PageTransition>{children}</PageTransition>
             </main>
             <CommandPalette />

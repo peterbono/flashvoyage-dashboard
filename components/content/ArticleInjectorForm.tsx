@@ -88,7 +88,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
         {/* Title */}
-        <div className="lg:col-span-2 space-y-1">
+        <div className="sm:col-span-2 lg:col-span-2 space-y-1">
           <Label className="text-xs text-zinc-500">Titre / Sujet</Label>
           <Input
             value={form.title}

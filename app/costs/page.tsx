@@ -407,11 +407,11 @@ export default function CostsPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full max-w-7xl">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 overflow-auto h-full max-w-7xl">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
+        <p className="text-xs md:text-sm text-zinc-500 mt-0.5">
           Real pipeline spend from {entries.length} production runs
         </p>
       </div>
@@ -460,11 +460,11 @@ export default function CostsPage() {
       </div>
 
       {/* ── 2. Cost Trend Chart + 3. Model Breakdown ────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Line chart — cost over time, stacked by model */}
-        <Card className="bg-zinc-900 border-zinc-800/80 xl:col-span-2">
+        <Card className="bg-zinc-900 border-zinc-800/80 lg:col-span-2">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-sm font-semibold text-white">Cost Trend</CardTitle>
               <div className="flex items-center gap-0.5 bg-zinc-800 border border-zinc-700/60 rounded-lg p-0.5">
                 {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
@@ -615,7 +615,7 @@ export default function CostsPage() {
 
       {/* ── 4. Run Detail Table ─────────────────────────────────────────── */}
       <Card className="bg-zinc-900 border-zinc-800/80">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3 flex-wrap gap-2">
           <CardTitle className="text-sm font-semibold text-white">
             Run Details{" "}
             <span className="text-zinc-600 font-normal ml-1">({entries.length})</span>
@@ -808,8 +808,8 @@ export default function CostsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/60">
-              <span className="text-xs text-zinc-600">
+            <div className="flex items-center justify-between px-3 md:px-4 py-3 border-t border-zinc-800/60 flex-wrap gap-2">
+              <span className="text-[10px] md:text-xs text-zinc-600">
                 {page * PAGE_SIZE + 1}--{Math.min((page + 1) * PAGE_SIZE, sortedEntries.length)} of{" "}
                 {sortedEntries.length} runs
               </span>

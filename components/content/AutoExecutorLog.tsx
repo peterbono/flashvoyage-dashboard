@@ -108,7 +108,7 @@ export function AutoExecutorLog({
       {/* Pending dry runs */}
       {pendingEntries.length > 0 && (
         <div className="bg-zinc-900/40 border border-amber-500/20 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60">
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-zinc-800/60 flex-wrap gap-2">
             <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
               Dry runs en attente ({pendingEntries.length})
@@ -127,6 +127,7 @@ export function AutoExecutorLog({
               Approuver tout
             </Button>
           </div>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800/60 hover:bg-transparent">
@@ -196,12 +197,13 @@ export function AutoExecutorLog({
               })}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
 
       {/* Applied actions log */}
       <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-zinc-800/60">
+        <div className="px-3 sm:px-4 py-2.5 border-b border-zinc-800/60">
           <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
             Actions recentes ({appliedEntries.length})
           </h3>
@@ -211,6 +213,7 @@ export function AutoExecutorLog({
             Aucune action auto-executor enregistree.
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800/60 hover:bg-transparent">
@@ -264,6 +267,7 @@ export function AutoExecutorLog({
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
     </div>

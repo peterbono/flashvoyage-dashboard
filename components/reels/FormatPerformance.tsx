@@ -168,7 +168,8 @@ export function FormatPerformance({ history, weights, loading }: Props) {
         <CardHeader>
           <CardTitle className="text-white">Analyse par format</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800">
@@ -222,6 +223,7 @@ export function FormatPerformance({ history, weights, loading }: Props) {
               })}
             </TableBody>
           </Table>
+          </div>
 
           {/* Recommendations from weights file */}
           {weights?.recommendations && weights.recommendations.length > 0 && (

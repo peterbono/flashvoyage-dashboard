@@ -156,7 +156,7 @@ export function ReelsTimeline({ data, loading }: Props) {
 
       <div className="px-4 py-3">
         {loading ? (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex-1 rounded-lg border border-gray-100 dark:border-zinc-800/50 p-3 animate-pulse">
                 <div className="h-3 w-10 rounded bg-gray-200 dark:bg-zinc-700 mb-2" />
@@ -165,7 +165,7 @@ export function ReelsTimeline({ data, loading }: Props) {
             ))}
           </div>
         ) : (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             {slotData.map((slot) => {
               const slotMins = slot.hour * 60 + slot.minute;
               const isPast = currentParis > slotMins + 60;

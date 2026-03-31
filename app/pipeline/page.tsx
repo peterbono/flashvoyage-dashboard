@@ -15,7 +15,7 @@ const PipelineVisualizer = dynamic(
 
 export default function PipelinePage() {
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-[100dvh] md:h-screen flex flex-col">
       <PipelineVisualizer />
     </div>
   );
