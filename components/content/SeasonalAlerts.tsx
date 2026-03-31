@@ -5,10 +5,14 @@ import { CalendarClock, AlertTriangle, Loader2 } from "lucide-react";
 
 export interface SeasonalItem {
   destination: string;
-  peakMonth: string;
-  daysUntilPeak: number;
-  suggestedTopic: string;
-  urgency: "critical" | "soon" | "planned";
+  peakMonth?: string;
+  publishBy?: string;
+  daysUntilPeak?: number;
+  daysUntilPublish?: number;
+  suggestedTopic?: string;
+  confidence?: number;
+  urgency?: string;
+  [key: string]: unknown;
 }
 
 interface Props {
@@ -19,6 +23,10 @@ interface Props {
 
 const URGENCY_STYLES: Record<string, { badge: string; icon: string }> = {
   critical: {
+    badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+    icon: "text-rose-400",
+  },
+  urgent: {
     badge: "bg-rose-500/15 text-rose-400 border-rose-500/30",
     icon: "text-rose-400",
   },
@@ -50,8 +58,12 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
     );
   }
 
-  // Only show urgent items (critical + soon)
-  const urgent = items.filter((i) => i.urgency === "critical" || i.urgency === "soon");
+  // Show urgent items (any urgency flag)
+  const urgent = items.filter((i) => {
+    const u = String(i.urgency || '').toLowerCase();
+    return u === 'critical' || u === 'soon' || u === 'urgent' ||
+           (i.daysUntilPublish != null && (i.daysUntilPublish as number) <= 45);
+  });
 
   if (urgent.length === 0) {
     return (
@@ -71,7 +83,7 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
       </div>
       <div className="divide-y divide-zinc-800/40">
         {urgent.map((item, i) => {
-          const style = URGENCY_STYLES[item.urgency];
+          const style = URGENCY_STYLES[String(item.urgency || 'soon').toLowerCase()] || URGENCY_STYLES.soon;
           return (
             <div
               key={`${item.destination}-${i}`}
@@ -80,17 +92,17 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
               <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${style.icon}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-zinc-200 truncate">
-                  {item.suggestedTopic}
+                  {item.suggestedTopic || `Publier article sur ${item.destination}`}
                 </p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">
-                  {item.destination} - pic en {item.peakMonth}
+                  {item.destination} — pic en {item.peakMonth || '?'}{item.publishBy ? ` (publier avant ${item.publishBy})` : ''}
                 </p>
               </div>
               <Badge
                 variant="outline"
-                className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${style.badge}`}
+                className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${style?.badge || 'border-amber-800/60 text-amber-400'}`}
               >
-                {item.daysUntilPeak}j
+                {item.daysUntilPeak ?? item.daysUntilPublish ?? '?'}j
               </Badge>
             </div>
           );

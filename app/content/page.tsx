@@ -140,10 +140,50 @@ export default function ContentPage() {
     return [];
   };
 
-  const roiItems = useMemo(() => unwrap<ROIQueueItem>(roiQueue.data?.data, 'queue', 'items'), [roiQueue.data]);
+  // Map real API shapes to component interfaces
+  const priorityMap: Record<string, string> = { P1: 'urgent', P2: 'high', P3: 'medium', P4: 'low', P5: 'low' };
+
+  const roiItems = useMemo(() => {
+    const raw = unwrap<Record<string, unknown>>(roiQueue.data?.data, 'queue', 'items');
+    return raw.map((r, i) => ({
+      id: String(r.rank ?? i),
+      title: String(r.topic ?? r.title ?? 'Article'),
+      topic: String(r.topic ?? ''),
+      type: String(r.action ?? r.type ?? 'standard'),
+      priority: priorityMap[String(r.priority ?? '')] ?? String(r.priority ?? 'medium'),
+      expectedROI: (r.roi as Record<string, unknown>)?.expectedRoi as number ?? r.expectedROI as number ?? 0,
+      destination: r.destination as string ?? undefined,
+    })) as ROIQueueItem[];
+  }, [roiQueue.data]);
+
   const gapItems = useMemo(() => unwrap<ContentGap>(contentGaps.data?.data, 'gaps', 'items'), [contentGaps.data]);
-  const seasonalItems = useMemo(() => unwrap<SeasonalItem>(seasonalForecast.data?.data, 'forecasts', 'destinations', 'items'), [seasonalForecast.data]);
-  const scoreItems = useMemo(() => unwrap<ArticleScore>(articleScores.data?.data, 'scores', 'articles', 'items'), [articleScores.data]);
+
+  const seasonalItems = useMemo(() => {
+    const raw = unwrap<Record<string, unknown>>(seasonalForecast.data?.data, 'forecasts', 'destinations', 'items');
+    return raw.map(r => ({
+      destination: String(r.destination ?? ''),
+      publishBy: String(r.publishBy ?? ''),
+      peakMonth: String(r.peakMonth ?? r.peakMonthName ?? ''),
+      urgency: String(r.urgency ?? (r.daysUntilPublish != null && (r.daysUntilPublish as number) <= 30 ? 'URGENT' : 'normal')),
+      confidence: r.confidence as number ?? 0,
+      daysUntilPublish: r.daysUntilPublish as number ?? 999,
+    })) as SeasonalItem[];
+  }, [seasonalForecast.data]);
+
+  const scoreItems = useMemo(() => {
+    const raw = unwrap<Record<string, unknown>>(articleScores.data?.data, 'scores', 'articles', 'items');
+    return raw.map(r => ({
+      id: String(r.wpId ?? r.id ?? ''),
+      title: String(r.title ?? ''),
+      slug: String(r.slug ?? ''),
+      score: (r.compositeScore as number) ?? (r.score as number) ?? 0,
+      lifecycle: String(r.lifecycle ?? 'NEW'),
+      traffic7d: (r.signals as Record<string, unknown>)?.traffic as number ?? r.traffic7d as number ?? 0,
+      actions: (r.actions as string[]) ?? [],
+      breakdown: r.signals as Record<string, number> ?? {},
+    })) as unknown as ArticleScore[];
+  }, [articleScores.data]);
+
   const competitorItems = useMemo(() => unwrap<CompetitorArticle>(competitorReport.data?.data, 'newArticles', 'articles', 'items'), [competitorReport.data]);
   const executorItems = useMemo(() => unwrap<ExecutorLogEntry>(executorLog.data?.data, 'entries', 'log', 'items'), [executorLog.data]);
 
