@@ -28,7 +28,20 @@ export default function ReelsPage() {
       const res = await fetch("/api/data/social-distributor/data/reel-history.jsonl");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      const entries: ReelHistoryEntry[] = Array.isArray(json.data) ? json.data : [];
+      const raw = Array.isArray(json.data) ? json.data : [];
+      // Map API fields to component interface
+      const entries: ReelHistoryEntry[] = raw.map((r: Record<string, unknown>) => ({
+        format: (r.format as string) || "pick",
+        destination: (r.destination as string) || undefined,
+        articleId: r.postId || r.articleId || undefined,
+        publishedAt: (r.date as string) || (r.publishedAt as string) || new Date().toISOString(),
+        igPermalink: (r.permalink as string) || (r.igPermalink as string) || undefined,
+        plays: (r.plays as number) || undefined,
+        engagement: (r.engagement as number) || undefined,
+        slot: (r.slot as string) || undefined,
+        reason: (r.reason as string) || undefined,
+        isBreakingNews: (r.isBreakingNews as boolean) || false,
+      }));
       setHistory(entries);
       setIsLive(entries.length > 0);
       setHistoryError(false);
