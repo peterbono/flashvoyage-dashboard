@@ -25,6 +25,7 @@ import {
   REEL_STAGE_IDS,
   SOCIAL_STAGE_IDS,
   INTEL_STAGE_IDS,
+  RECO_STAGE_IDS,
   NODE_TO_WORKFLOW,
   VizRun,
   deriveNodeStatuses,
@@ -136,6 +137,27 @@ function buildRealGraph(): { nodes: Node[]; edges: Edge[] } {
         markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e", width: 14, height: 14 },
       };
     }),
+    // Data → Reco → Action pipeline (linear, rose)
+    ...RECO_STAGE_IDS.slice(0, -1).map((id, i) => {
+      const nextId = RECO_STAGE_IDS[i + 1];
+      return {
+        id: `e-${id}-${nextId}`,
+        source: id,
+        target: nextId,
+        animated: true,
+        style: { stroke: "#f43f5e", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#f43f5e", width: 14, height: 14 },
+      };
+    }),
+    // Cross-pipeline link: Scorer → Content Gaps (intelligence feeds reco)
+    {
+      id: "e-intel-scorer-reco-gaps",
+      source: "intel-scorer",
+      target: "reco-gaps",
+      animated: true,
+      style: { stroke: "#a3a3a3", strokeWidth: 1, strokeDasharray: "5,5" },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#a3a3a3", width: 10, height: 10 },
+    },
   ];
 
   return { nodes, edges };
@@ -778,6 +800,10 @@ export default function PipelineVisualizer() {
               <div className="flex items-center gap-1.5 text-xs text-green-400/80 bg-green-950/20 rounded px-2 py-1">
                 <Github className="w-3 h-3" />
                 Intelligence — Trends + Analytics + Scoring
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-rose-400/80 bg-rose-950/20 rounded px-2 py-1">
+                <Github className="w-3 h-3" />
+                Reco → Action — Gaps + Recommender + Lifecycle + Auto-Executor
               </div>
             </div>
           </Panel>

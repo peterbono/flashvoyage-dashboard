@@ -288,6 +288,53 @@ export const REAL_PIPELINE_NODES: RealPipelineStageData[] = [
     icon: "Brain",
     color: "text-purple-400",
   },
+
+  // ── DATA → RECO → ACTION PIPELINE (5th row) ──────────────────────────────
+  {
+    id: "reco-gaps",
+    name: "Content Gaps",
+    description:
+      "Detects content gaps: trending topics with no matching article, GSC keywords with high impressions but no dedicated page.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Search",
+    color: "text-rose-400",
+  },
+  {
+    id: "reco-recommender",
+    name: "Recommender",
+    description:
+      "Generates 12 types of specific recommendations per article: PUSH_TO_TOP3, REWRITE_TITLE_META, ADD_WIDGETS, REFRESH, etc.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Lightbulb",
+    color: "text-rose-400",
+  },
+  {
+    id: "reco-lifecycle",
+    name: "Lifecycle",
+    description:
+      "Tracks article lifecycle: NEW → GROWING → PEAK → DECLINING → EVERGREEN → DEAD. Auto-actions per state.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Activity",
+    color: "text-rose-400",
+  },
+  {
+    id: "reco-executor",
+    name: "Auto-Executor",
+    description:
+      "Automatically applies safe recommendations: ADD_WIDGETS, ADD_INTERNAL_LINKS, ADD_TOC, ADD_FAQ_SCHEMA via WP REST API.",
+    status: "idle",
+    durationMs: 0,
+    logs: [],
+    icon: "Zap",
+    color: "text-rose-400",
+    variant: "publish",
+  },
 ];
 
 // Ordered viz-bridge stage IDs (for sequencing — article pipeline)
@@ -323,6 +370,14 @@ export const INTEL_STAGE_IDS = [
   "intel-analytics",
   "intel-scorer",
   "intel-scheduler",
+] as const;
+
+// Data → Reco → Action pipeline stage IDs (5th row)
+export const RECO_STAGE_IDS = [
+  "reco-gaps",
+  "reco-recommender",
+  "reco-lifecycle",
+  "reco-executor",
 ] as const;
 
 export type VizBridgeStageId = (typeof VIZ_BRIDGE_STAGE_IDS)[number];
@@ -410,6 +465,11 @@ export const REAL_POSITIONS: Record<string, { x: number; y: number }> = {
   "intel-analytics":      { x: 660,  y: 980 },
   "intel-scorer":         { x: 1040, y: 980 },
   "intel-scheduler":      { x: 1420, y: 980 },
+  // Data → Reco → Action pipeline (row 5)
+  "reco-gaps":            { x: 280,  y: 1260 },
+  "reco-recommender":     { x: 660,  y: 1260 },
+  "reco-lifecycle":       { x: 1040, y: 1260 },
+  "reco-executor":        { x: 1420, y: 1260 },
 };
 
 // ── Map node IDs to GitHub workflow files ─────────────────────────────────────
@@ -438,4 +498,9 @@ export const NODE_TO_WORKFLOW: Record<string, string> = {
   "intel-analytics":      "daily-analytics",
   "intel-scorer":         "content-intelligence",
   "intel-scheduler":      "publish-reels",
+  // Reco nodes map to content-intelligence.yml
+  "reco-gaps":            "content-intelligence",
+  "reco-recommender":     "content-intelligence",
+  "reco-lifecycle":       "content-intelligence",
+  "reco-executor":        "content-intelligence",
 };
