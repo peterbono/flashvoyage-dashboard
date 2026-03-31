@@ -33,6 +33,18 @@ function formatTime(hour: number, minute: number): string {
   return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 }
 
+function utcToParis(hour: number, minute: number): string {
+  // Paris = UTC+2 (summer CEST)
+  const h = (hour + 2) % 24;
+  return `${h.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+}
+
+function utcToBangkok(hour: number, minute: number): string {
+  // Bangkok = UTC+7
+  const h = (hour + 7) % 24;
+  return `${h.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+}
+
 function dayLabel(days: number[]): string {
   const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   return days.map((d) => names[d]).join("+");
@@ -66,14 +78,20 @@ export function CronTimeline() {
 
   return (
     <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 px-3 md:px-4 py-3">
-      {/* Header */}
+      {/* Header with multi-timezone */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Clock className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-xs font-semibold text-zinc-400">Cron Schedule (UTC)</span>
+        <span className="text-xs font-semibold text-zinc-400">Cron Schedule</span>
+        <div className="flex items-center gap-2 text-[10px]">
+          <span className="text-zinc-600">UTC {formatTime(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
+          <span className="text-blue-400/70">🇫🇷 {utcToParis(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
+          <span className="text-amber-400/70">🇹🇭 {utcToBangkok(Math.floor(nowMinutes / 60), nowMinutes % 60)}</span>
+        </div>
         {nextCron && (
           <span className="text-[10px] text-zinc-600 ml-auto">
-            Next: <span className="text-zinc-400 font-medium">{nextCron.label}</span> at{" "}
-            {formatTime(nextCron.utcHour, nextCron.utcMinute)} UTC
+            Next: <span className="text-zinc-400 font-medium">{nextCron.label}</span>{" "}
+            <span className="text-blue-400/70">{utcToParis(nextCron.utcHour, nextCron.utcMinute)} 🇫🇷</span>{" "}
+            <span className="text-amber-400/70">{utcToBangkok(nextCron.utcHour, nextCron.utcMinute)} 🇹🇭</span>
           </span>
         )}
       </div>
@@ -114,13 +132,13 @@ export function CronTimeline() {
               />
               {/* Tooltip on hover */}
               <div className="absolute bottom-full mb-2 hidden group-hover:block z-20">
-                <div className="bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-[10px] text-white whitespace-nowrap shadow-lg">
-                  <span className="font-medium">{cron.label}</span>
-                  <span className="text-zinc-400 ml-1.5">
-                    {formatTime(cron.utcHour, cron.utcMinute)} UTC
-                  </span>
+                <div className="bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-[10px] text-white whitespace-nowrap shadow-lg space-y-0.5">
+                  <div className="font-semibold text-[11px]">{cron.label}</div>
+                  <div className="text-zinc-500">{formatTime(cron.utcHour, cron.utcMinute)} UTC</div>
+                  <div className="text-blue-400">🇫🇷 {utcToParis(cron.utcHour, cron.utcMinute)} Paris</div>
+                  <div className="text-amber-400">🇹🇭 {utcToBangkok(cron.utcHour, cron.utcMinute)} Bangkok</div>
                   {cron.days && (
-                    <span className="text-zinc-500 ml-1">({dayLabel(cron.days)})</span>
+                    <div className="text-zinc-600">{dayLabel(cron.days)} only</div>
                   )}
                 </div>
               </div>
@@ -149,20 +167,23 @@ export function CronTimeline() {
       </div>
       </div>
 
-      {/* Legend row */}
+      {/* Legend row with timezone info */}
       <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
         {CRONS.map((cron) => (
           <div key={cron.id} className="flex items-center gap-1">
             <div className={`w-1.5 h-1.5 rounded-full ${cron.color}`} />
             <span className="text-[10px] text-zinc-600">
               {cron.label}
+              <span className="text-zinc-700 ml-0.5">
+                {utcToBangkok(cron.utcHour, cron.utcMinute)}
+              </span>
               {cron.days ? ` (${dayLabel(cron.days)})` : ""}
             </span>
           </div>
         ))}
         <div className="flex items-center gap-1 ml-auto">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[10px] text-zinc-600">Current time</span>
+          <span className="text-[10px] text-zinc-600">Now</span>
         </div>
       </div>
     </div>
