@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { usePolling } from "@/lib/usePolling";
+import { DateRangeSelector, type DateRange } from "@/components/ui/date-range-selector";
+import { CsvExportButton } from "@/components/ui/csv-export-button";
 import {
   Lightbulb,
   BarChart3,
@@ -38,6 +40,12 @@ const POLL_INTERVAL = 120_000;
 export default function ContentPage() {
   const [activeTab, setActiveTab] = useState("quoi-ecrire");
   const [queueRefreshKey, setQueueRefreshKey] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    return { from, to, preset: "30d" };
+  });
 
   // -----------------------------------------------------------------------
   // Tab 1: "Quoi ecrire" data
@@ -214,27 +222,30 @@ export default function ContentPage() {
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
-        <h1 className="text-sm font-semibold text-white tracking-tight mr-1">
-          Content Intelligence
-        </h1>
-        {articlesCount > 0 && (
-          <Badge
-            variant="outline"
-            className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
-          >
-            <Wifi className="w-2.5 h-2.5" />
-            {articlesCount} articles
-          </Badge>
-        )}
-        {!hasIntelligenceData && (
-          <Badge
-            variant="outline"
-            className="border-zinc-800 text-zinc-600 text-xs"
-          >
-            En attente des donnees intelligence
-          </Badge>
-        )}
+      <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2 gap-x-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap gap-y-2">
+          <h1 className="text-sm font-semibold text-white tracking-tight mr-1">
+            Content Intelligence
+          </h1>
+          {articlesCount > 0 && (
+            <Badge
+              variant="outline"
+              className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
+            >
+              <Wifi className="w-2.5 h-2.5" />
+              {articlesCount} articles
+            </Badge>
+          )}
+          {!hasIntelligenceData && (
+            <Badge
+              variant="outline"
+              className="border-zinc-800 text-zinc-600 text-xs"
+            >
+              En attente des donnees intelligence
+            </Badge>
+          )}
+        </div>
+        <DateRangeSelector value={dateRange} onChange={setDateRange} />
       </div>
 
       {/* Tabs */}
@@ -282,11 +293,27 @@ export default function ContentPage() {
           <ArticleInjectorForm onSubmitted={handleQueueSubmitted} />
 
           {/* ROI Queue */}
-          <ROIQueueTable
-            items={roiItems}
-            loading={roiQueue.loading}
-            error={roiQueue.error}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-end">
+              <CsvExportButton
+                data={roiItems as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: "title" as keyof Record<string, unknown>, header: "Title" },
+                  { key: "topic" as keyof Record<string, unknown>, header: "Topic" },
+                  { key: "type" as keyof Record<string, unknown>, header: "Type" },
+                  { key: "priority" as keyof Record<string, unknown>, header: "Priority" },
+                  { key: "expectedROI" as keyof Record<string, unknown>, header: "Expected ROI" },
+                  { key: "destination" as keyof Record<string, unknown>, header: "Destination" },
+                ]}
+                filename={`roi-queue-${new Date().toISOString().slice(0, 10)}.csv`}
+              />
+            </div>
+            <ROIQueueTable
+              items={roiItems}
+              loading={roiQueue.loading}
+              error={roiQueue.error}
+            />
+          </div>
 
           {/* Content Gaps + Seasonal side by side on large screens */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -321,11 +348,26 @@ export default function ContentPage() {
           </div>
 
           {/* Article score table (full width) */}
-          <ArticleScoreTable
-            articles={scoreItems}
-            loading={articleScores.loading}
-            error={articleScores.error}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-end">
+              <CsvExportButton
+                data={scoreItems as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: "title" as keyof Record<string, unknown>, header: "Title" },
+                  { key: "slug" as keyof Record<string, unknown>, header: "Slug" },
+                  { key: "score" as keyof Record<string, unknown>, header: "Score" },
+                  { key: "lifecycle" as keyof Record<string, unknown>, header: "Lifecycle" },
+                  { key: "traffic7d" as keyof Record<string, unknown>, header: "Traffic (7d)" },
+                ]}
+                filename={`article-scores-${new Date().toISOString().slice(0, 10)}.csv`}
+              />
+            </div>
+            <ArticleScoreTable
+              articles={scoreItems}
+              loading={articleScores.loading}
+              error={articleScores.error}
+            />
+          </div>
         </TabsContent>
 
         {/* ================================================================ */}

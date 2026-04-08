@@ -8,6 +8,8 @@ import { Sunrise } from "lucide-react";
 import { CrossPlatformMetricCard } from "@/components/growth/CrossPlatformMetricCard";
 import { TikTokActions, type ReelEntry } from "@/components/morning-brief/TikTokActions";
 import { SystemHealthLight } from "@/components/morning-brief/SystemHealthLight";
+import { PostingGoalTracker } from "@/components/morning-brief/PostingGoalTracker";
+import { BestTimeRecommender } from "@/components/morning-brief/BestTimeRecommender";
 
 // Existing components
 import type { WorkflowsPayload } from "@/components/command-center/SystemHealthBanner";
@@ -32,6 +34,8 @@ interface SocialStats {
   };
   ga4: { sessions7d: number };
   tiktok: { followers: number; totalViews: number; totalLikes: number };
+  publications: { platform: string; publishedAt: string }[];
+  deltas: { impressions: number; interactions: number; publications: number };
   fetchedAt: string;
 }
 
@@ -137,6 +141,7 @@ export default function MorningBrief() {
             { platform: "tiktok", value: impressions?.tk ?? 0 },
             { platform: "instagram", value: impressions?.ig ?? 0 },
           ]}
+          delta={socialStats?.deltas ? { value: socialStats.deltas.impressions, period: "30d" } : undefined}
           loading={socialLoading}
         />
         <CrossPlatformMetricCard
@@ -148,11 +153,22 @@ export default function MorningBrief() {
             { platform: "facebook", value: interactions?.fb ?? 0 },
             { platform: "instagram", value: interactions?.ig ?? 0 },
           ]}
+          delta={socialStats?.deltas ? { value: socialStats.deltas.interactions, period: "30d" } : undefined}
           loading={socialLoading}
         />
       </div>
 
-      {/* 2. TikTok Actions */}
+      {/* 2. Posting Goals + Best Time */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <PostingGoalTracker
+          todayPublications={(socialStats?.publications ?? [])
+            .filter((p) => p.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
+            .map((p) => ({ platform: p.platform }))}
+        />
+        <BestTimeRecommender variant="compact" />
+      </div>
+
+      {/* 3. TikTok Actions */}
       <TikTokActions reels={reelEntries} loading={reelLoading} />
 
       {/* 3. System Health */}

@@ -12,11 +12,13 @@ import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from "@/components/ui/table";
 import { KpiCard } from "@/components/costs/KpiCard";
+import { DateRangeSelector, type DateRange } from "@/components/ui/date-range-selector";
+import { CsvExportButton } from "@/components/ui/csv-export-button";
 import {
   DollarSign, CalendarDays, TrendingDown, Type,
   ArrowUpDown, ChevronDown, ChevronRight,
   ChevronLeft, ChevronRight as ChevronRightPage,
-  Loader2, AlertTriangle, ExternalLink,
+  Loader2, AlertTriangle, ExternalLink, TrendingUp,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -199,6 +201,45 @@ export default function CostsPage() {
       });
   }, []);
 
+  // ── Date Range Filter ────────────────────────────────────────────────────
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    return { from, to, preset: "30d" };
+  });
+
+  // Filter entries by selected date range
+  const filteredEntries = useMemo(() => {
+    const fromStr = dateRange.from.toISOString().slice(0, 10);
+    const toStr = dateRange.to.toISOString().slice(0, 10);
+    return entries.filter((e) => {
+      const d = e.date.slice(0, 10);
+      return d >= fromStr && d <= toStr;
+    });
+  }, [entries, dateRange]);
+
+  // Compute previous period of equal length for delta comparison
+  const periodSummary = useMemo(() => {
+    const periodMs = dateRange.to.getTime() - dateRange.from.getTime();
+    const prevTo = new Date(dateRange.from.getTime() - 1); // day before current range start
+    const prevFrom = new Date(prevTo.getTime() - periodMs);
+    const prevFromStr = prevFrom.toISOString().slice(0, 10);
+    const prevToStr = prevTo.toISOString().slice(0, 10);
+
+    const currentTotal = filteredEntries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const prevEntries = entries.filter((e) => {
+      const d = e.date.slice(0, 10);
+      return d >= prevFromStr && d <= prevToStr;
+    });
+    const prevTotal = prevEntries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const deltaPercent = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : null;
+
+    const presetLabel = dateRange.preset === "custom" ? "period" : dateRange.preset;
+
+    return { currentTotal, prevTotal, deltaPercent, presetLabel };
+  }, [entries, filteredEntries, dateRange]);
+
   // ── State ────────────────────────────────────────────────────────────────
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [sortCol, setSortCol] = useState<SortColumn>("date");
@@ -206,9 +247,9 @@ export default function CostsPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  // ── KPI Computation ──────────────────────────────────────────────────────
+  // ── KPI Computation (scoped to filtered entries) ─────────────────────────
   const kpis = useMemo(() => {
-    if (entries.length === 0) {
+    if (filteredEntries.length === 0) {
       return {
         totalSpend: 0,
         totalSpendDelta: undefined as number | undefined,
@@ -218,15 +259,15 @@ export default function CostsPage() {
       };
     }
 
-    const totalSpend = entries.reduce((s, e) => s + e.totalCostUSD, 0);
-    const totalWords = entries.reduce((s, e) => s + (e.wordCount ?? 0), 0);
-    const avgCostArticle = totalSpend / entries.length;
+    const totalSpend = filteredEntries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const totalWords = filteredEntries.reduce((s, e) => s + (e.wordCount ?? 0), 0);
+    const avgCostArticle = totalSpend / filteredEntries.length;
     const avgCostWord = totalWords > 0 ? totalSpend / totalWords : 0;
 
     // MTD: current month
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const mtdSpend = entries
+    const mtdSpend = filteredEntries
       .filter((e) => e.date.slice(0, 7) === currentMonth)
       .reduce((s, e) => s + e.totalCostUSD, 0);
 
@@ -239,7 +280,7 @@ export default function CostsPage() {
     const d30str = d30ago.toISOString().slice(0, 10);
     const d60str = d60ago.toISOString().slice(0, 10);
 
-    const last30 = entries
+    const last30 = filteredEntries
       .filter((e) => e.date.slice(0, 10) >= d30str)
       .reduce((s, e) => s + e.totalCostUSD, 0);
     const prev30 = entries
@@ -252,15 +293,15 @@ export default function CostsPage() {
     const totalSpendDelta = prev30 > 0 ? ((last30 - prev30) / prev30) * 100 : undefined;
 
     return { totalSpend, totalSpendDelta, mtdSpend, avgCostArticle, avgCostWord };
-  }, [entries]);
+  }, [entries, filteredEntries]);
 
-  // Spark data for KPI cards
+  // Spark data for KPI cards (scoped to filtered entries)
   const sparkData = useMemo(() => {
-    if (entries.length === 0) return { cost: [], mtd: [], avgArticle: [], avgWord: [] };
+    if (filteredEntries.length === 0) return { cost: [], mtd: [], avgArticle: [], avgWord: [] };
 
     // Build daily totals for spark
     const dailyMap = new Map<string, { cost: number; count: number; words: number }>();
-    for (const e of entries) {
+    for (const e of filteredEntries) {
       const d = e.date.slice(0, 10);
       const existing = dailyMap.get(d);
       if (existing) {
@@ -281,19 +322,19 @@ export default function CostsPage() {
       avgArticle: days.map(([, d]) => d.count > 0 ? d.cost / d.count : 0),
       avgWord: days.map(([, d]) => d.words > 0 ? d.cost / d.words : 0),
     };
-  }, [entries]);
+  }, [filteredEntries]);
 
-  // ── Cost Trend Chart ─────────────────────────────────────────────────────
+  // ── Cost Trend Chart (scoped to filtered entries) ─────────────────────────
   const { data: chartData, modelKeys } = useMemo(
-    () => buildChartData(entries, granularity),
-    [entries, granularity],
+    () => buildChartData(filteredEntries, granularity),
+    [filteredEntries, granularity],
   );
 
-  // ── Model Breakdown (donut) ──────────────────────────────────────────────
+  // ── Model Breakdown (donut, scoped to filtered entries) ──────────────────
   const modelShares = useMemo(() => {
     const totals = new Map<string, number>();
     let grand = 0;
-    for (const entry of entries) {
+    for (const entry of filteredEntries) {
       for (const [model, metrics] of Object.entries(entry.byModel ?? {})) {
         const cost = (metrics as ByModelMetrics)?.costUSD ?? 0;
         totals.set(model, (totals.get(model) ?? 0) + cost);
@@ -338,11 +379,11 @@ export default function CostsPage() {
     }
 
     return shares;
-  }, [entries]);
+  }, [filteredEntries]);
 
-  // ── Run Detail Table ─────────────────────────────────────────────────────
+  // ── Run Detail Table (scoped to filtered entries) ────────────────────────
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => {
+    return [...filteredEntries].sort((a, b) => {
       let cmp = 0;
       switch (sortCol) {
         case "date": cmp = a.date.localeCompare(b.date); break;
@@ -353,7 +394,7 @@ export default function CostsPage() {
       }
       return sortAsc ? cmp : -cmp;
     });
-  }, [entries, sortCol, sortAsc]);
+  }, [filteredEntries, sortCol, sortAsc]);
 
   const totalPages = Math.ceil(sortedEntries.length / PAGE_SIZE);
   const pagedEntries = sortedEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -408,12 +449,52 @@ export default function CostsPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 overflow-auto h-full max-w-7xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
-        <p className="text-xs md:text-sm text-zinc-500 mt-0.5">
-          Real pipeline spend from {entries.length} production runs
-        </p>
+      {/* Header + Date Range Selector + Period Summary */}
+      <div className="space-y-3">
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
+            <p className="text-xs md:text-sm text-zinc-500 mt-0.5">
+              Real pipeline spend from {filteredEntries.length} production runs
+              {filteredEntries.length !== entries.length && (
+                <span className="text-zinc-600"> (of {entries.length} total)</span>
+              )}
+            </p>
+          </div>
+          <DateRangeSelector value={dateRange} onChange={setDateRange} />
+        </div>
+
+        {/* Period total summary with delta badge */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="text-sm text-zinc-400">
+            Total:{" "}
+            <span className="text-white font-semibold text-base">
+              ${periodSummary.currentTotal.toFixed(2)}
+            </span>
+          </div>
+          {periodSummary.deltaPercent !== null ? (
+            <Badge
+              variant="outline"
+              className={
+                periodSummary.deltaPercent <= 0
+                  ? "border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
+                  : "border-rose-800/60 bg-rose-950/30 text-rose-400 gap-1 text-xs"
+              }
+            >
+              {periodSummary.deltaPercent <= 0 ? (
+                <TrendingDown className="w-3 h-3" />
+              ) : (
+                <TrendingUp className="w-3 h-3" />
+              )}
+              {periodSummary.deltaPercent > 0 ? "+" : ""}
+              {periodSummary.deltaPercent.toFixed(1)}% vs previous {periodSummary.presetLabel}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs">
+              No previous period data
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* ── 1. KPI Bar ──────────────────────────────────────────────────── */}
@@ -618,11 +699,27 @@ export default function CostsPage() {
         <CardHeader className="flex flex-row items-center justify-between pb-3 flex-wrap gap-2">
           <CardTitle className="text-sm font-semibold text-white">
             Run Details{" "}
-            <span className="text-zinc-600 font-normal ml-1">({entries.length})</span>
+            <span className="text-zinc-600 font-normal ml-1">({filteredEntries.length})</span>
           </CardTitle>
-          <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 text-xs">
-            {entries.length} production runs
-          </Badge>
+          <div className="flex items-center gap-2">
+            <CsvExportButton
+              data={filteredEntries as unknown as Record<string, unknown>[]}
+              columns={[
+                { key: "date" as keyof Record<string, unknown>, header: "Date" },
+                { key: "title" as keyof Record<string, unknown>, header: "Title" },
+                { key: "totalCostUSD" as keyof Record<string, unknown>, header: "Total Cost (USD)" },
+                { key: "totalTokens" as keyof Record<string, unknown>, header: "Tokens" },
+                { key: "durationMs" as keyof Record<string, unknown>, header: "Duration (ms)" },
+                { key: "costPerWord" as keyof Record<string, unknown>, header: "Cost Per Word" },
+                { key: "wordCount" as keyof Record<string, unknown>, header: "Word Count" },
+                { key: "url" as keyof Record<string, unknown>, header: "URL" },
+              ]}
+              filename={`costs-${dateRange.preset}-${new Date().toISOString().slice(0, 10)}.csv`}
+            />
+            <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 text-xs">
+              {filteredEntries.length} production runs
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">

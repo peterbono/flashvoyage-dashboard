@@ -53,6 +53,13 @@ export interface PipelineHistoryEntry {
   destination?: string;
 }
 
+export interface PostingGoal {
+  id: string;
+  platform: "instagram" | "facebook" | "tiktok" | "all";
+  frequency: "daily" | "weekly";
+  target: number;
+}
+
 interface AppState {
   // Articles / Pipeline
   articles: Article[];
@@ -97,6 +104,12 @@ interface AppState {
   // Stats
   stats: DashboardStats | null;
   setStats: (stats: DashboardStats) => void;
+
+  // Posting goals
+  postingGoals: PostingGoal[];
+  setPostingGoals: (goals: PostingGoal[]) => void;
+  addPostingGoal: (goal: PostingGoal) => void;
+  removePostingGoal: (id: string) => void;
 
   // Pipeline run state (not persisted)
   pipelineRun: PipelineRun | null;
@@ -168,6 +181,14 @@ export const useAppStore = create<AppState>()(
       removeTaskItem: (id) =>
         set((state) => ({ taskItems: state.taskItems.filter((t) => t.id !== id) })),
 
+      // Posting goals
+      postingGoals: [],
+      setPostingGoals: (postingGoals) => set({ postingGoals }),
+      addPostingGoal: (goal) =>
+        set((state) => ({ postingGoals: [...state.postingGoals, goal] })),
+      removePostingGoal: (id) =>
+        set((state) => ({ postingGoals: state.postingGoals.filter((g) => g.id !== id) })),
+
       // UI
       sidebarCollapsed: false,
       toggleSidebar: () =>
@@ -217,6 +238,7 @@ export const useAppStore = create<AppState>()(
         kanbanCards: state.kanbanCards,
         taskItems: state.taskItems,
         pipelineHistory: state.pipelineHistory,
+        postingGoals: state.postingGoals,
       }),
     }
   )

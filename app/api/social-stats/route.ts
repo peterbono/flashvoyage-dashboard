@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { fetchContentFile } from "@/lib/github";
 
 /**
@@ -57,6 +57,11 @@ interface SocialStats {
     expiresAt: string | null;
   };
   publications: Publication[];
+  deltas: {
+    impressions: number;
+    interactions: number;
+    publications: number;
+  };
   fetchedAt: string;
 }
 
@@ -155,8 +160,59 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
   }
 }
 
-export async function GET() {
+type Period = "7d" | "30d" | "90d";
+
+const PERIOD_DAYS: Record<Period, number> = { "7d": 7, "30d": 30, "90d": 90 };
+
+function parsePeriod(raw: string | null): Period {
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "30d";
+}
+
+function filterByDateRange(
+  pubs: Publication[],
+  startMs: number,
+  endMs: number
+): Publication[] {
+  return pubs.filter((p) => {
+    const t = new Date(p.publishedAt).getTime();
+    return t >= startMs && t < endMs;
+  });
+}
+
+function computeDeltas(
+  allPubs: Publication[],
+  periodDays: number,
+  now: number
+): SocialStats["deltas"] {
+  const currentStart = now - periodDays * 86_400_000;
+  const previousStart = currentStart - periodDays * 86_400_000;
+
+  const current = filterByDateRange(allPubs, currentStart, now);
+  const previous = filterByDateRange(allPubs, previousStart, currentStart);
+
+  const curImpressions = current.reduce((s, p) => s + p.impressions, 0);
+  const prevImpressions = previous.reduce((s, p) => s + p.impressions, 0);
+
+  const curInteractions = current.reduce((s, p) => s + p.interactions, 0);
+  const prevInteractions = previous.reduce((s, p) => s + p.interactions, 0);
+
+  const pctChange = (cur: number, prev: number) =>
+    prev === 0 ? 0 : Math.round(((cur - prev) / prev) * 10000) / 100;
+
+  return {
+    impressions: pctChange(curImpressions, prevImpressions),
+    interactions: pctChange(curInteractions, prevInteractions),
+    publications: pctChange(current.length, previous.length),
+  };
+}
+
+export async function GET(request: NextRequest) {
   try {
+    const period = parsePeriod(request.nextUrl.searchParams.get("period"));
+    const periodDays = PERIOD_DAYS[period];
+    const now = Date.now();
+
     // Use env var (tokens.json is gitignored, not available via raw GitHub)
     const fbToken = process.env.FB_PAGE_TOKEN || "";
 
@@ -246,11 +302,18 @@ export async function GET() {
         interactions: (v.likes || 0) + (v.comments || 0),
       }));
 
-    const publications: Publication[] = [
+    const allPublications: Publication[] = [
       ...igPublications,
       ...fbPublications,
       ...tiktokPublications,
     ].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+    // Compute deltas using the full (unfiltered) publications array
+    const deltas = computeDeltas(allPublications, periodDays, now);
+
+    // Filter publications to the requested period
+    const periodStart = now - periodDays * 86_400_000;
+    const publications = filterByDateRange(allPublications, periodStart, now);
 
     const stats: SocialStats = {
       instagram: igStats,
@@ -264,6 +327,7 @@ export async function GET() {
       },
       threads: { tokenStatus: threadsStatus, expiresAt: threadsExpiry },
       publications,
+      deltas,
       fetchedAt: new Date().toISOString(),
     };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProportionalBar } from "@/components/ui/proportional-bar";
 import { PLATFORM_COLORS } from "@/lib/platform-colors";
@@ -17,6 +18,7 @@ interface CrossPlatformMetricCardProps {
   total: number;
   breakdowns: PlatformBreakdown[];
   loading?: boolean;
+  delta?: { value: number; period: string };
 }
 
 export function CrossPlatformMetricCard({
@@ -25,6 +27,7 @@ export function CrossPlatformMetricCard({
   total,
   breakdowns,
   loading = false,
+  delta,
 }: CrossPlatformMetricCardProps) {
   if (loading) {
     return (
@@ -70,6 +73,31 @@ export function CrossPlatformMetricCard({
             {total.toLocaleString("en-US")}
           </span>
         </div>
+
+        {/* Delta badge */}
+        {delta != null && (
+          <div className="flex items-center gap-1">
+            {delta.value > 0 ? (
+              <>
+                <TrendingUp className="size-3 text-emerald-400" />
+                <span className="text-xs font-medium text-emerald-400">
+                  +{delta.value}% vs {delta.period}
+                </span>
+              </>
+            ) : delta.value < 0 ? (
+              <>
+                <TrendingDown className="size-3 text-rose-400" />
+                <span className="text-xs font-medium text-rose-400">
+                  {"\u2212"}{Math.abs(delta.value)}% vs {delta.period}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs font-medium text-zinc-600">
+                — stable
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Middle: proportional bar */}
         <ProportionalBar segments={segments} height={10} />

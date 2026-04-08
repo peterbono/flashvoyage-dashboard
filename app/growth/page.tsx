@@ -10,6 +10,7 @@ import { DateRangeSelector, type DateRange } from "@/components/ui/date-range-se
 import { PublicationTable, type Publication } from "@/components/growth/PublicationTable";
 import { FormatPerformanceChart } from "@/components/growth/FormatPerformanceChart";
 import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
+import { BestTimeRecommender } from "@/components/morning-brief/BestTimeRecommender";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,6 +39,7 @@ interface SocialStats {
     videosPosted: number;
   };
   publications: Publication[];
+  deltas: { impressions: number; interactions: number; publications: number };
   fetchedAt: string;
 }
 
@@ -164,11 +166,14 @@ export default function GrowthPage() {
       {/* Row 2: Publication Table (unified cross-platform) */}
       <PublicationTable publications={publications} loading={socialLoading} />
 
-      {/* Row 3: Format Performance + Audience Geo */}
+      {/* Row 3: Best Times + Format Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <BestTimeRecommender variant="full" />
         <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
-        <AudienceGeoChart data={audienceForGeo} loading={socialLoading} />
       </div>
+
+      {/* Row 4: Audience Geo */}
+      <AudienceGeoChart data={audienceForGeo} loading={socialLoading} />
     </div>
   );
 }
