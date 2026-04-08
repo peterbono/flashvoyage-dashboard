@@ -18,6 +18,16 @@ const IG_ID = "17841442283434789";
 const FB_PAGE_ID = "1068729919650308";
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
+interface Publication {
+  id: string;
+  platform: "instagram" | "facebook" | "tiktok";
+  type: "reel" | "post" | "video";
+  caption: string;
+  publishedAt: string;
+  impressions: number;
+  interactions: number;
+}
+
 interface SocialStats {
   instagram: {
     reelsPublished: number;
@@ -46,6 +56,7 @@ interface SocialStats {
     tokenStatus: "active" | "expiring" | "expired";
     expiresAt: string | null;
   };
+  publications: Publication[];
   fetchedAt: string;
 }
 
@@ -194,6 +205,53 @@ export async function GET() {
       else if (daysLeft <= 14) threadsStatus = "expiring";
     }
 
+    // Build unified publications array from all platforms
+    const igPublications: Publication[] = igStats.recentReels.map((r) => ({
+      id: r.id,
+      platform: "instagram" as const,
+      type: "reel" as const,
+      caption: r.caption || "",
+      publishedAt: r.date,
+      impressions: r.likes + r.comments,
+      interactions: r.likes + r.comments,
+    }));
+
+    const fbPublications: Publication[] = fbStats.recentPosts.map((p) => ({
+      id: p.id,
+      platform: "facebook" as const,
+      type: "post" as const,
+      caption: p.message || "",
+      publishedAt: p.date,
+      impressions: p.likes + p.comments + p.shares,
+      interactions: p.likes + p.comments + p.shares,
+    }));
+
+    const tkVideos = (tiktokData?.videos || []) as {
+      title?: string;
+      date?: string;
+      views?: number;
+      likes?: number;
+      comments?: number;
+      visibility?: string;
+    }[];
+    const tiktokPublications: Publication[] = tkVideos
+      .filter((v) => v.visibility !== "private")
+      .map((v, i) => ({
+        id: `tiktok-${i}`,
+        platform: "tiktok" as const,
+        type: "video" as const,
+        caption: v.title || "",
+        publishedAt: v.date || "",
+        impressions: v.views || 0,
+        interactions: (v.likes || 0) + (v.comments || 0),
+      }));
+
+    const publications: Publication[] = [
+      ...igPublications,
+      ...fbPublications,
+      ...tiktokPublications,
+    ].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
     const stats: SocialStats = {
       instagram: igStats,
       facebook: fbStats,
@@ -205,6 +263,7 @@ export async function GET() {
         videosPosted: tiktokData?.videos?.length || 0,
       },
       threads: { tokenStatus: threadsStatus, expiresAt: threadsExpiry },
+      publications,
       fetchedAt: new Date().toISOString(),
     };
 

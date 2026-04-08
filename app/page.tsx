@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import { usePolling } from "@/lib/usePolling";
 import { Sunrise } from "lucide-react";
 
-// Morning Brief components
-import { KpiGrowthRow, type KpiData } from "@/components/morning-brief/KpiGrowthRow";
+// New Plan A components
+import { CrossPlatformMetricCard } from "@/components/growth/CrossPlatformMetricCard";
 import { TikTokActions, type ReelEntry } from "@/components/morning-brief/TikTokActions";
 import { SystemHealthLight } from "@/components/morning-brief/SystemHealthLight";
 
@@ -53,88 +53,55 @@ function transformTokens(json: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function buildKpiData(
-  social: SocialStats | null,
-  costEntries: CostHistoryEntry[] | null
-): KpiData {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-
-  const thisMonthCost = (costEntries || [])
-    .filter((e) => e.date >= monthStart)
-    .reduce((sum, e) => sum + (e.totalCostUSD || 0), 0);
-
-  return {
-    igFollowers: {
-      value: social?.instagram?.reelsPublished ?? 0,
-      delta7d: 0,
-    },
-    tiktokViews: {
-      value: social?.tiktok?.totalViews ?? 0,
-      delta7d: 0,
-    },
-    ga4Traffic: {
-      value: social?.ga4?.sessions7d ?? 0,
-      delta7d: 0,
-    },
-    costMonth: { value: thisMonthCost, delta30d: 0 },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function MorningBrief() {
-  // 1. Social stats (IG + GA4 + TikTok combined) — polls every 2 min
   const { data: socialStats, loading: socialLoading } =
     usePolling<SocialStats>("/api/social-stats", 120_000);
 
-  // 2. Workflow statuses — polls every 30s
   const { data: workflowData, loading: wfLoading } =
     usePolling<WorkflowsPayload>("/api/workflows", 30_000);
 
-  // 3. Reel history — polls every 60s
   const { data: reelData, loading: reelLoading } = usePolling<ReelEntry[]>(
     "/api/data/social-distributor/data/reel-history.jsonl",
     60_000
   );
 
-  // 4. Cost history — polls every 5 min
   const { data: costData, loading: costLoading } =
     usePolling<CostHistoryEntry[]>("/api/data/cost-history.jsonl", 300_000);
 
-  // 5. Token data — polls every 5 min
   const { data: tokensRaw, loading: tokensLoading } = usePolling<Record<
     string,
     unknown
   > | null>("/api/data/social-distributor/data/tokens.json", 300_000);
 
-  // Transform data
-  const reelEntries = reelData
-    ? Array.isArray(reelData)
-      ? reelData
-      : []
-    : null;
-
+  // Transform
+  const reelEntries = reelData ? (Array.isArray(reelData) ? reelData : []) : null;
   const costEntries = costData
-    ? Array.isArray(costData)
-      ? costData
-      : transformCosts(costData)
+    ? Array.isArray(costData) ? costData : transformCosts(costData)
     : null;
-
   const tokensData = tokensRaw
-    ? typeof tokensRaw === "object"
-      ? tokensRaw
-      : transformTokens(tokensRaw)
+    ? typeof tokensRaw === "object" ? tokensRaw : transformTokens(tokensRaw)
     : null;
 
-  const kpiData = useMemo(
-    () => buildKpiData(socialStats ?? null, costEntries),
-    [socialStats, costEntries]
-  );
+  // Cross-platform metrics for unified cards
+  const impressions = useMemo(() => {
+    if (!socialStats) return null;
+    const ig = socialStats.instagram?.totalLikes ?? 0;
+    const fb = socialStats.facebook?.totalReach ?? 0;
+    const tk = socialStats.tiktok?.totalViews ?? 0;
+    return { ig, fb, tk, total: ig + fb + tk };
+  }, [socialStats]);
+
+  const interactions = useMemo(() => {
+    if (!socialStats) return null;
+    const ig = (socialStats.instagram?.totalLikes ?? 0) + (socialStats.instagram?.totalComments ?? 0);
+    const fb = socialStats.facebook?.totalReach ?? 0;
+    const tk = socialStats.tiktok?.totalLikes ?? 0;
+    return { ig, fb, tk, total: ig + fb + tk };
+  }, [socialStats]);
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -159,19 +126,42 @@ export default function MorningBrief() {
         </div>
       </div>
 
-      {/* 1. KPI Growth Row — live from IG + TikTok + GA4 + Costs */}
-      <KpiGrowthRow data={kpiData} loading={socialLoading || costLoading} />
+      {/* 1. Unified Cross-Platform KPIs (Metricool-style) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <CrossPlatformMetricCard
+          label="Impressions"
+          icon={Sunrise}
+          total={impressions?.total ?? 0}
+          breakdowns={[
+            { platform: "facebook", value: impressions?.fb ?? 0 },
+            { platform: "tiktok", value: impressions?.tk ?? 0 },
+            { platform: "instagram", value: impressions?.ig ?? 0 },
+          ]}
+          loading={socialLoading}
+        />
+        <CrossPlatformMetricCard
+          label="Interactions"
+          icon={Sunrise}
+          total={interactions?.total ?? 0}
+          breakdowns={[
+            { platform: "tiktok", value: interactions?.tk ?? 0 },
+            { platform: "facebook", value: interactions?.fb ?? 0 },
+            { platform: "instagram", value: interactions?.ig ?? 0 },
+          ]}
+          loading={socialLoading}
+        />
+      </div>
 
       {/* 2. TikTok Actions */}
       <TikTokActions reels={reelEntries} loading={reelLoading} />
 
-      {/* 3. System Health (traffic lights) */}
+      {/* 3. System Health */}
       <SystemHealthLight data={workflowData} loading={wfLoading} />
 
-      {/* 4. Cost Ticker (compact) */}
+      {/* 4. Cost Ticker */}
       <CostTicker data={costEntries} loading={costLoading} />
 
-      {/* 5. Alerts Feed */}
+      {/* 5. Alerts */}
       <AlertsFeed
         tokensData={tokensData}
         workflowData={workflowData}
