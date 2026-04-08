@@ -34,7 +34,7 @@ export function TikTokGrowthCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Followers</span>
+              <span className="text-xs text-zinc-400">Abonnes</span>
             </div>
             <span className="text-sm font-bold text-white">
               {TIKTOK_STATS.followers}
@@ -45,7 +45,7 @@ export function TikTokGrowthCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Eye className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Views total</span>
+              <span className="text-xs text-zinc-400">Vues totales</span>
             </div>
             <span className="text-sm font-bold text-white">
               {TIKTOK_STATS.totalViews.toLocaleString("fr-FR")}
@@ -56,7 +56,7 @@ export function TikTokGrowthCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Heart className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Likes total</span>
+              <span className="text-xs text-zinc-400">Likes totaux</span>
             </div>
             <span className="text-sm font-bold text-white">
               {TIKTOK_STATS.totalLikes}
@@ -67,7 +67,7 @@ export function TikTokGrowthCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Like rate moyen</span>
+              <span className="text-xs text-zinc-400">Taux de like moyen</span>
             </div>
             <span className="text-sm font-bold text-emerald-400">
               {TIKTOK_STATS.avgLikeRate}%
@@ -77,7 +77,7 @@ export function TikTokGrowthCard() {
           {/* Separator */}
           <div className="border-t border-zinc-800 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500">Best format</span>
+              <span className="text-xs text-zinc-500">Meilleur format</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-medium text-amber-400">
                   {TIKTOK_STATS.bestFormat}
@@ -88,7 +88,7 @@ export function TikTokGrowthCard() {
               </div>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-zinc-500">Videos postees</span>
+              <span className="text-xs text-zinc-500">Videos publiees</span>
               <span className="text-xs font-medium text-zinc-300">
                 {TIKTOK_STATS.videosPosted}
               </span>

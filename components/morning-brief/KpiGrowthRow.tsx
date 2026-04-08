@@ -61,7 +61,7 @@ function formatUsd(v: number): string {
 const CARDS: KpiCardConfig[] = [
   {
     key: "igFollowers",
-    label: "IG Followers",
+    label: "Abonnes IG",
     icon: Instagram,
     iconColor: "text-pink-500",
     deltaKey: "delta7d",

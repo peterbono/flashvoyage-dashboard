@@ -74,12 +74,12 @@ function CopyButton({ text }: { text: string }) {
       {copied ? (
         <>
           <Check className="w-3 h-3 text-emerald-400" />
-          <span className="text-emerald-400">Copie</span>
+          <span className="text-emerald-400">Copie !</span>
         </>
       ) : (
         <>
           <Copy className="w-3 h-3" />
-          <span>Caption</span>
+          <span>Copier</span>
         </>
       )}
     </button>
