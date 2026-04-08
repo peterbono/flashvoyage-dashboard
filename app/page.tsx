@@ -68,7 +68,7 @@ function buildKpiData(
 
   return {
     igFollowers: {
-      value: social?.instagram?.followerCount ?? social?.instagram?.reelsPublished ?? 0,
+      value: social?.instagram?.reelsPublished ?? 0,
       delta7d: 0,
     },
     tiktokViews: {
