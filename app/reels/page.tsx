@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Film, CalendarDays, BarChart3, SlidersHorizontal, Wifi } from "lucide-react";
+import { Film, CalendarDays, BarChart3, SlidersHorizontal, Wifi, Video } from "lucide-react";
 import { ReelCalendar, type ReelHistoryEntry } from "@/components/reels/ReelCalendar";
 import { FormatPerformance, type PerformanceWeights } from "@/components/reels/FormatPerformance";
 import { ManualControl, type ABTestsData } from "@/components/reels/ManualControl";
+import { TikTokTab } from "@/components/reels/TikTokTab";
 
 export default function ReelsPage() {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -127,6 +128,10 @@ export default function ReelsPage() {
               <BarChart3 className="w-3.5 h-3.5" />
               Perf.
             </TabsTrigger>
+            <TabsTrigger value="tiktok" className="gap-1.5 text-xs sm:text-sm">
+              <Video className="w-3.5 h-3.5" />
+              TikTok
+            </TabsTrigger>
             <TabsTrigger value="control" className="gap-1.5 text-xs sm:text-sm">
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Controle</span>
@@ -144,6 +149,10 @@ export default function ReelsPage() {
               weights={weights}
               loading={weightsLoading}
             />
+          </TabsContent>
+
+          <TabsContent value="tiktok">
+            <TikTokTab />
           </TabsContent>
 
           <TabsContent value="control">
