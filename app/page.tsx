@@ -263,13 +263,13 @@ export default function MorningBrief() {
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BestTimeRecommender variant="full" />
-        <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
+        <FormatPerformanceChart data={perfWeights} publications={publications} loading={perfLoading} />
       </div>
       <AudienceGeoChart data={audienceForGeo} loading={socialLoading} />
 
       {/* ── SYSTEM ──────────────────────────────────────────────── */}
       <SystemHealthLight data={workflowData} loading={wfLoading} />
-      <CostTicker data={costEntries} loading={costLoading} />
+      {/* Cost ticker hidden when $0 — full costs on /costs page */}
       <AlertsFeed
         tokensData={tokensData}
         workflowData={workflowData}

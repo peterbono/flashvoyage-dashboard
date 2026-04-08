@@ -3,43 +3,97 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import { BarChart3 } from "lucide-react";
+import { PLATFORM_COLORS } from "@/lib/platform-colors";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface Publication {
+  platform: string;
+  type: string;
+  impressions: number;
+  interactions: number;
+  caption?: string;
+}
 
 interface Props {
   data: {
     formatScores: Record<string, number>;
     killedFormats: string[];
-    recommendations: string[];
   } | null;
+  publications?: Publication[];
   loading: boolean;
 }
 
-const FORMAT_COLORS: Record<string, string> = {
-  avantapres: "#06b6d4",
-  "cost-vs": "#3b82f6",
-  leaderboard: "#f97316",
-  "best-time": "#8b5cf6",
-  pick: "#eab308",
-  budget: "#10b981",
-  humor: "#ec4899",
-  "humor-tweet": "#f472b6",
-  month: "#6366f1",
-  poll: "#71717a",
-  versus: "#71717a",
-};
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-export function FormatPerformanceChart({ data, loading }: Props) {
+function guessFormat(caption: string): string {
+  const c = caption.toLowerCase();
+  if (c.includes("spot") || c.includes("pick") || c.includes("rater")) return "pick";
+  if (c.includes("budget") || c.includes("cout") || c.includes("jour")) return "budget";
+  if (c.includes("expect") || c.includes("reality") || c.includes("avant")) return "avantapres";
+  if (c.includes("vs") || c.includes("moins cher") || c.includes("compare")) return "cost-vs";
+  if (c.includes("quand") || c.includes("best time") || c.includes("saison")) return "best-time";
+  if (c.includes("top") || c.includes("classement") || c.includes("leaderboard")) return "leaderboard";
+  if (c.includes("humor") || c.includes("quand tu") || c.includes("meme")) return "humor";
+  if (c.includes("partir") || c.includes("mois") || c.includes("ou aller")) return "month";
+  return "other";
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function FormatPerformanceChart({ data, publications, loading }: Props) {
+  // Build per-format × per-platform data from publications
   const chartData = useMemo(() => {
     if (!data?.formatScores) return [];
+
+    // If we have publications, compute real per-platform breakdown
+    const formatPlatformData: Record<string, { ig: number; fb: number; tt: number; count: Record<string, number> }> = {};
+
+    if (publications && publications.length > 0) {
+      for (const pub of publications) {
+        const format = guessFormat(pub.caption || "");
+        if (!formatPlatformData[format]) {
+          formatPlatformData[format] = { ig: 0, fb: 0, tt: 0, count: { ig: 0, fb: 0, tt: 0 } };
+        }
+        const d = formatPlatformData[format];
+        if (pub.platform === "instagram") { d.ig += pub.impressions; d.count.ig++; }
+        else if (pub.platform === "facebook") { d.fb += pub.impressions; d.count.fb++; }
+        else if (pub.platform === "tiktok") { d.tt += pub.impressions; d.count.tt++; }
+      }
+    }
+
     return Object.entries(data.formatScores)
-      .map(([format, score]) => ({
-        format,
-        score,
-        killed: data.killedFormats?.includes(format),
-      }))
+      .filter(([, score]) => score > 0)
+      .map(([format, score]) => {
+        const pd = formatPlatformData[format];
+        return {
+          format,
+          score,
+          ig: pd ? (pd.count.ig > 0 ? Math.round(pd.ig / pd.count.ig) : 0) : 0,
+          fb: pd ? (pd.count.fb > 0 ? Math.round(pd.fb / pd.count.fb) : 0) : 0,
+          tt: pd ? (pd.count.tt > 0 ? Math.round(pd.tt / pd.count.tt) : 0) : 0,
+        };
+      })
       .sort((a, b) => b.score - a.score);
-  }, [data]);
+  }, [data, publications]);
+
+  const hasPublications = publications && publications.length > 0;
 
   if (loading) {
     return (
@@ -66,40 +120,75 @@ export function FormatPerformanceChart({ data, loading }: Props) {
             variant="outline"
             className="ml-auto text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400"
           >
-            Score IG
+            {hasPublications ? "Avg Impressions" : "Score IG"}
           </Badge>
         </div>
 
-        <div className="h-56">
+        <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <XAxis type="number" domain={[0, 100]} tick={{ fill: "#71717a", fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="format"
-                width={90}
-                tick={{ fill: "#a1a1aa", fontSize: 11 }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#18181b",
-                  border: "1px solid #3f3f46",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: "#e4e4e7" }}
-                formatter={(value) => [String(value), "Score"]}
-              />
-              <Bar dataKey="score" radius={[0, 4, 4, 0]}>
-                {chartData.map((entry) => (
-                  <Cell
-                    key={entry.format}
-                    fill={entry.killed ? "#3f3f46" : (FORMAT_COLORS[entry.format] || "#71717a")}
-                    opacity={entry.killed ? 0.4 : 1}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
+            {hasPublications ? (
+              // Multi-platform bars (Metricool-style)
+              <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <XAxis type="number" tick={{ fill: "#71717a", fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="format"
+                  width={90}
+                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#18181b",
+                    border: "1px solid #3f3f46",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "#e4e4e7" }}
+                />
+                <Legend
+                  wrapperStyle={{ fontSize: 11, color: "#a1a1aa" }}
+                />
+                <Bar
+                  dataKey="ig"
+                  name="Instagram"
+                  fill={PLATFORM_COLORS.instagram.hex}
+                  radius={[0, 3, 3, 0]}
+                />
+                <Bar
+                  dataKey="fb"
+                  name="Facebook"
+                  fill={PLATFORM_COLORS.facebook.hex}
+                  radius={[0, 3, 3, 0]}
+                />
+                <Bar
+                  dataKey="tt"
+                  name="TikTok"
+                  fill={PLATFORM_COLORS.tiktok.hex}
+                  radius={[0, 3, 3, 0]}
+                />
+              </BarChart>
+            ) : (
+              // Fallback: single score bar (when no publications data)
+              <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <XAxis type="number" domain={[0, 100]} tick={{ fill: "#71717a", fontSize: 11 }} />
+                <YAxis
+                  type="category"
+                  dataKey="format"
+                  width={90}
+                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#18181b",
+                    border: "1px solid #3f3f46",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(value) => [String(value), "Score"]}
+                />
+                <Bar dataKey="score" fill="#eab308" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
       </CardContent>

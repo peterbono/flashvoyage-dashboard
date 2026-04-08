@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Globe } from "lucide-react";
 
@@ -48,6 +49,12 @@ export function AudienceGeoChart({ data, loading }: Props) {
           <span className="text-sm font-semibold text-white">
             Audience by Country (7d)
           </span>
+          <Badge
+            variant="outline"
+            className="ml-auto text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400"
+          >
+            GA4 Website
+          </Badge>
         </div>
 
         <div className="flex items-center gap-6">

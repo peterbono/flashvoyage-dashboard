@@ -122,9 +122,7 @@ export function CrossPlatformMetricCard({
                       {delta.value.toFixed(1)}%
                     </span>
                   </>
-                ) : (
-                  <span className="text-[10px] text-zinc-600">stable</span>
-                )}
+                ) : null}
               </div>
             )}
           </div>
