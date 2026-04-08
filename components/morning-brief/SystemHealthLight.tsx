@@ -21,11 +21,11 @@ interface HealthGroup {
 
 const GROUPS: HealthGroup[] = [
   {
-    label: "Pipeline Contenu",
+    label: "Content Pipeline",
     workflowIds: ["publish-article", "content-intelligence"],
   },
   {
-    label: "Distribution Sociale",
+    label: "Social Distribution",
     workflowIds: ["publish-reels", "publish-social-posts"],
   },
   {

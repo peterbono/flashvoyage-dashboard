@@ -136,7 +136,7 @@ export default function MorningBrief() {
         </div>
         <div>
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-            Brief du Matin
+            Morning Brief
           </h1>
           <p className="text-[12px] text-gray-500 dark:text-zinc-500 capitalize">
             {today}

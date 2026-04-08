@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "FlashVoyage Dashboard",
-  description: "Pipeline de contenu, suivi des couts et gestion des taches pour FlashVoyage",
+  description: "Content pipeline, cost tracking, and task management for FlashVoyage",
   icons: {
     icon: "/favicon.svg",
   },
@@ -38,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased h-screen`}
       >

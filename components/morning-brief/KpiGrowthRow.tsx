@@ -61,7 +61,7 @@ function formatUsd(v: number): string {
 const CARDS: KpiCardConfig[] = [
   {
     key: "igFollowers",
-    label: "Abonnes IG",
+    label: "IG Followers",
     icon: Instagram,
     iconColor: "text-pink-500",
     deltaKey: "delta7d",
@@ -70,7 +70,7 @@ const CARDS: KpiCardConfig[] = [
   },
   {
     key: "tiktokViews",
-    label: "Vues TikTok 7j",
+    label: "TikTok Views 7d",
     icon: Video,
     iconColor: "text-cyan-400",
     deltaKey: "delta7d",
@@ -88,7 +88,7 @@ const CARDS: KpiCardConfig[] = [
   },
   {
     key: "costMonth",
-    label: "Couts LLM mois",
+    label: "LLM Cost /mo",
     icon: DollarSign,
     iconColor: "text-emerald-400",
     deltaKey: "delta30d",

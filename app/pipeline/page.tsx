@@ -122,7 +122,7 @@ export default function PipelinePage() {
             Pipeline
           </h1>
           <p className="text-[12px] text-gray-500 dark:text-zinc-500">
-            Sante des workflows de production
+            Production workflow health
           </p>
         </div>
         <a

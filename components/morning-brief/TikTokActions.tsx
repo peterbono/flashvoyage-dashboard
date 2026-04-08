@@ -74,12 +74,12 @@ function CopyButton({ text }: { text: string }) {
       {copied ? (
         <>
           <Check className="w-3 h-3 text-emerald-400" />
-          <span className="text-emerald-400">Copie !</span>
+          <span className="text-emerald-400">Copied!</span>
         </>
       ) : (
         <>
           <Copy className="w-3 h-3" />
-          <span>Copier</span>
+          <span>Copy</span>
         </>
       )}
     </button>
@@ -139,10 +139,10 @@ function SlotCard({
             </div>
           </div>
         ) : slotPassed ? (
-          <span className="text-xs text-zinc-600">Pas de reel</span>
+          <span className="text-xs text-zinc-600">No reel</span>
         ) : (
           <span className="text-xs text-amber-500/70">
-            En attente du batch 13h
+            Waiting for 1pm batch
           </span>
         )}
       </div>
@@ -209,7 +209,7 @@ export function TikTokActions({ reels, loading }: Props) {
             <Video className="w-3.5 h-3.5 text-cyan-400" />
           </div>
           <span className="text-sm font-semibold text-white">
-            TikToks a poster
+            TikToks to Post
           </span>
           <Badge
             variant="outline"
