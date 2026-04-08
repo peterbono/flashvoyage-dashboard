@@ -1,17 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { usePolling } from "@/lib/usePolling";
-import { Sunrise } from "lucide-react";
+import { Sunrise, Eye, Heart, Users, FileText, Instagram, Facebook, Video, Globe } from "lucide-react";
 
-// New Plan A components
+// Components
 import { CrossPlatformMetricCard } from "@/components/growth/CrossPlatformMetricCard";
-import { TikTokActions, type ReelEntry } from "@/components/morning-brief/TikTokActions";
+import { DateRangeSelector, type DateRange } from "@/components/ui/date-range-selector";
+import { PublicationTable, type Publication } from "@/components/growth/PublicationTable";
 import { SystemHealthLight } from "@/components/morning-brief/SystemHealthLight";
 import { PostingGoalTracker } from "@/components/morning-brief/PostingGoalTracker";
 import { BestTimeRecommender } from "@/components/morning-brief/BestTimeRecommender";
-
-// Existing components
 import type { WorkflowsPayload } from "@/components/command-center/SystemHealthBanner";
 import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 import { CostTicker, type CostHistoryEntry } from "@/components/command-center/CostTicker";
@@ -34,7 +33,7 @@ interface SocialStats {
   };
   ga4: { sessions7d: number };
   tiktok: { followers: number; totalViews: number; totalLikes: number };
-  publications: { platform: string; publishedAt: string }[];
+  publications: Publication[];
   deltas: { impressions: number; interactions: number; publications: number };
   fetchedAt: string;
 }
@@ -62,16 +61,20 @@ function transformTokens(json: unknown): Record<string, unknown> | null {
 // ---------------------------------------------------------------------------
 
 export default function MorningBrief() {
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    to: new Date(),
+    preset: "30d",
+  });
+
+  type PlatformFilter = "all" | "instagram" | "facebook" | "tiktok";
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
+
   const { data: socialStats, loading: socialLoading } =
-    usePolling<SocialStats>("/api/social-stats", 120_000);
+    usePolling<SocialStats>(`/api/social-stats?period=${dateRange.preset}`, 120_000);
 
   const { data: workflowData, loading: wfLoading } =
     usePolling<WorkflowsPayload>("/api/workflows", 30_000);
-
-  const { data: reelData, loading: reelLoading } = usePolling<ReelEntry[]>(
-    "/api/data/social-distributor/data/reel-history.jsonl",
-    60_000
-  );
 
   const { data: costData, loading: costLoading } =
     usePolling<CostHistoryEntry[]>("/api/data/cost-history.jsonl", 300_000);
@@ -82,7 +85,6 @@ export default function MorningBrief() {
   > | null>("/api/data/social-distributor/data/tokens.json", 300_000);
 
   // Transform
-  const reelEntries = reelData ? (Array.isArray(reelData) ? reelData : []) : null;
   const costEntries = costData
     ? Array.isArray(costData) ? costData : transformCosts(costData)
     : null;
@@ -90,9 +92,17 @@ export default function MorningBrief() {
     ? typeof tokensRaw === "object" ? tokensRaw : transformTokens(tokensRaw)
     : null;
 
-  // Cross-platform metrics for unified cards
+  // Cross-platform aggregations
+  const followers = useMemo(() => {
+    if (!socialStats) return { total: 0, ig: 0, fb: 0, tk: 0 };
+    const ig = socialStats.instagram?.followerCount ?? 0;
+    const fb = socialStats.facebook?.pageFollowers ?? 0;
+    const tk = socialStats.tiktok?.followers ?? 0;
+    return { ig, fb, tk, total: ig + fb + tk };
+  }, [socialStats]);
+
   const impressions = useMemo(() => {
-    if (!socialStats) return null;
+    if (!socialStats) return { total: 0, ig: 0, fb: 0, tk: 0 };
     const ig = socialStats.instagram?.totalLikes ?? 0;
     const fb = socialStats.facebook?.totalReach ?? 0;
     const tk = socialStats.tiktok?.totalViews ?? 0;
@@ -100,12 +110,26 @@ export default function MorningBrief() {
   }, [socialStats]);
 
   const interactions = useMemo(() => {
-    if (!socialStats) return null;
+    if (!socialStats) return { total: 0, ig: 0, fb: 0, tk: 0 };
     const ig = (socialStats.instagram?.totalLikes ?? 0) + (socialStats.instagram?.totalComments ?? 0);
     const fb = socialStats.facebook?.totalReach ?? 0;
     const tk = socialStats.tiktok?.totalLikes ?? 0;
     return { ig, fb, tk, total: ig + fb + tk };
   }, [socialStats]);
+
+  const pubCounts = useMemo(() => {
+    const pubs = socialStats?.publications ?? [];
+    const ig = pubs.filter((p) => p.platform === "instagram").length;
+    const fb = pubs.filter((p) => p.platform === "facebook").length;
+    const tk = pubs.filter((p) => p.platform === "tiktok").length;
+    return { ig, fb, tk, total: pubs.length };
+  }, [socialStats]);
+
+  const allPublications = socialStats?.publications ?? [];
+  const publications = platformFilter === "all"
+    ? allPublications
+    : allPublications.filter((p) => p.platform === platformFilter);
+  const deltas = socialStats?.deltas;
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -115,12 +139,12 @@ export default function MorningBrief() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 w-full max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
+      {/* Header + Date Range */}
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10">
           <Sunrise className="w-4 h-4 text-amber-500" />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
             Morning Brief
           </h1>
@@ -128,53 +152,100 @@ export default function MorningBrief() {
             {today}
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Platform filter */}
+          <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-0.5 border border-zinc-800/80">
+            {([
+              { key: "all" as PlatformFilter, label: "All", icon: Globe },
+              { key: "instagram" as PlatformFilter, label: "IG", icon: Instagram },
+              { key: "facebook" as PlatformFilter, label: "FB", icon: Facebook },
+              { key: "tiktok" as PlatformFilter, label: "TT", icon: Video },
+            ]).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setPlatformFilter(key)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
+                  platformFilter === key
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Icon className="w-3 h-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <DateRangeSelector value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
-      {/* 1. Unified Cross-Platform KPIs (Metricool-style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* ── ACCOUNT ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <CrossPlatformMetricCard
+          label="Followers"
+          icon={Users}
+          total={followers.total}
+          breakdowns={[
+            { platform: "facebook", value: followers.fb },
+            { platform: "tiktok", value: followers.tk },
+            { platform: "instagram", value: followers.ig },
+          ]}
+          loading={socialLoading}
+        />
         <CrossPlatformMetricCard
           label="Impressions"
-          icon={Sunrise}
-          total={impressions?.total ?? 0}
+          icon={Eye}
+          total={impressions.total}
           breakdowns={[
-            { platform: "facebook", value: impressions?.fb ?? 0 },
-            { platform: "tiktok", value: impressions?.tk ?? 0 },
-            { platform: "instagram", value: impressions?.ig ?? 0 },
+            { platform: "facebook", value: impressions.fb },
+            { platform: "tiktok", value: impressions.tk },
+            { platform: "instagram", value: impressions.ig },
           ]}
-          delta={socialStats?.deltas ? { value: socialStats.deltas.impressions, period: "30d" } : undefined}
+          delta={deltas ? { value: deltas.impressions, period: dateRange.preset } : undefined}
           loading={socialLoading}
         />
         <CrossPlatformMetricCard
           label="Interactions"
-          icon={Sunrise}
-          total={interactions?.total ?? 0}
+          icon={Heart}
+          total={interactions.total}
           breakdowns={[
-            { platform: "tiktok", value: interactions?.tk ?? 0 },
-            { platform: "facebook", value: interactions?.fb ?? 0 },
-            { platform: "instagram", value: interactions?.ig ?? 0 },
+            { platform: "tiktok", value: interactions.tk },
+            { platform: "facebook", value: interactions.fb },
+            { platform: "instagram", value: interactions.ig },
           ]}
-          delta={socialStats?.deltas ? { value: socialStats.deltas.interactions, period: "30d" } : undefined}
+          delta={deltas ? { value: deltas.interactions, period: dateRange.preset } : undefined}
+          loading={socialLoading}
+        />
+        <CrossPlatformMetricCard
+          label="Publications"
+          icon={FileText}
+          total={pubCounts.total}
+          breakdowns={[
+            { platform: "instagram", value: pubCounts.ig },
+            { platform: "facebook", value: pubCounts.fb },
+            { platform: "tiktok", value: pubCounts.tk },
+          ]}
+          delta={deltas ? { value: deltas.publications, period: dateRange.preset } : undefined}
           loading={socialLoading}
         />
       </div>
 
-      {/* 2. Posting Goals + Best Time */}
+      {/* ── PUBLICATIONS TABLE ──────────────────────────────────── */}
+      <PublicationTable publications={publications} loading={socialLoading} />
+
+      {/* ── INTELLIGENCE ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <PostingGoalTracker
-          todayPublications={(socialStats?.publications ?? [])
+          todayPublications={(publications)
             .filter((p) => p.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
             .map((p) => ({ platform: p.platform }))}
         />
         <BestTimeRecommender variant="compact" />
       </div>
 
-      {/* 3. System Health */}
+      {/* ── SYSTEM ──────────────────────────────────────────────── */}
       <SystemHealthLight data={workflowData} loading={wfLoading} />
-
-      {/* 4. Cost Ticker */}
       <CostTicker data={costEntries} loading={costLoading} />
-
-      {/* 5. Alerts */}
       <AlertsFeed
         tokensData={tokensData}
         workflowData={workflowData}
