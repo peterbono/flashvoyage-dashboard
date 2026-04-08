@@ -1,11 +1,81 @@
 "use client";
 
+import { useMemo } from "react";
+import { usePolling } from "@/lib/usePolling";
 import { TrendingUp } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { FormatPerformanceChart } from "@/components/growth/FormatPerformanceChart";
+import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
+import { ReelsActivityChart } from "@/components/growth/ReelsActivityChart";
+import { TikTokGrowthCard } from "@/components/growth/TikTokGrowthCard";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface PerformanceWeights {
+  formatScores: Record<string, number>;
+  killedFormats: string[];
+  recommendations: string[];
+}
+
+interface AudienceSegments {
+  byCountry: { country: string; sessions: number; percentage: number }[];
+  byDevice: { device: string; sessions: number; percentage: number }[];
+  byChannel: { channel: string; sessions: number; percentage: number }[];
+}
+
+interface ReelHistoryEntry {
+  date: string;
+  format: string;
+  permalink?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export default function GrowthPage() {
+  const { data: perfData, loading: perfLoading } =
+    usePolling<PerformanceWeights>(
+      "/api/data/social-distributor/reels/data/performance-weights.json",
+      300_000
+    );
+
+  const { data: audienceData, loading: audienceLoading } =
+    usePolling<AudienceSegments>(
+      "/api/data/social-distributor/data/audience-segments.json",
+      300_000
+    );
+
+  const { data: reelData, loading: reelLoading } = usePolling<
+    ReelHistoryEntry[]
+  >(
+    "/api/data/social-distributor/data/reel-history.jsonl",
+    60_000
+  );
+
+  // Unwrap API response shape
+  const perfWeights = useMemo(() => {
+    if (!perfData) return null;
+    const d = perfData as unknown as { data?: PerformanceWeights };
+    return d?.data ?? (perfData as PerformanceWeights);
+  }, [perfData]);
+
+  const audience = useMemo(() => {
+    if (!audienceData) return null;
+    const d = audienceData as unknown as { data?: AudienceSegments };
+    return d?.data ?? (audienceData as AudienceSegments);
+  }, [audienceData]);
+
+  const reels = useMemo(() => {
+    if (!reelData) return null;
+    const d = reelData as unknown as { data?: ReelHistoryEntry[] };
+    return Array.isArray(d) ? d : d?.data ?? [];
+  }, [reelData]);
+
   return (
     <div className="p-4 md:p-6 space-y-4 w-full max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10">
           <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -15,22 +85,24 @@ export default function GrowthPage() {
             Growth
           </h1>
           <p className="text-[12px] text-gray-500 dark:text-zinc-500">
-            Croissance par plateforme — IG, TikTok, Web
+            Performance par format et audience
           </p>
         </div>
       </div>
 
-      <Card className="bg-zinc-900 border-zinc-800/80">
-        <CardContent className="py-12 text-center">
-          <TrendingUp className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-          <p className="text-sm text-zinc-500">
-            Page Growth en construction — Phase 2
-          </p>
-          <p className="text-xs text-zinc-600 mt-1">
-            Followers over time, format performance, funnel content → revenue
-          </p>
-        </CardContent>
-      </Card>
+      {/* Row 1: Format Performance + TikTok */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
+        </div>
+        <TikTokGrowthCard />
+      </div>
+
+      {/* Row 2: Audience Geo + Reels Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AudienceGeoChart data={audience} loading={audienceLoading} />
+        <ReelsActivityChart data={reels} loading={reelLoading} />
+      </div>
     </div>
   );
 }
