@@ -11,7 +11,6 @@ import {
   Film,
   DollarSign,
   FileText,
-  CheckSquare,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -32,7 +31,6 @@ const navItems = [
   { href: "/reels", label: "Reels", icon: Film },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/content", label: "Content", icon: FileText },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
 ];
 
 export function Sidebar() {
