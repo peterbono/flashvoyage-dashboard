@@ -26,7 +26,7 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: Sunrise },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
-  { href: "/reels", label: "Reels", icon: Film },
+  { href: "/reels", label: "Planner", icon: Film },
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/content", label: "Content", icon: FileText },
 ];

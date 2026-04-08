@@ -198,15 +198,27 @@ export function ReelCalendar({ history, loading }: Props) {
                       return (
                         <div
                           key={day}
-                          className={`h-14 sm:h-20 rounded border transition-colors p-1 ${
+                          onClick={() => {
+                            if (dayReels.length < 3) {
+                              // Open manual publish with this date
+                              const tabEl = document.querySelector('[value="publish"]') as HTMLButtonElement;
+                              if (tabEl) tabEl.click();
+                            }
+                          }}
+                          className={`h-14 sm:h-20 rounded border transition-colors p-1 cursor-pointer group ${
                             isToday
                               ? "border-amber-500/50 bg-amber-500/5"
-                              : "border-zinc-800/40 bg-zinc-900/30 hover:border-zinc-700/60"
+                              : "border-zinc-800/40 bg-zinc-900/30 hover:border-zinc-700/60 hover:bg-zinc-800/20"
                           }`}
                         >
-                          <span className={`text-[10px] sm:text-xs tabular-nums ${isToday ? "text-amber-400 font-semibold" : "text-zinc-500"}`}>
-                            {day}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[10px] sm:text-xs tabular-nums ${isToday ? "text-amber-400 font-semibold" : "text-zinc-500"}`}>
+                              {day}
+                            </span>
+                            {dayReels.length < 3 && (
+                              <span className="text-[10px] text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">+</span>
+                            )}
+                          </div>
 
                           {/* Reel dots — up to 3 */}
                           <div className="flex flex-col gap-0.5 mt-0.5 sm:mt-1">

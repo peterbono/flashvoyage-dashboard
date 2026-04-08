@@ -7,41 +7,60 @@ import { Film, CalendarDays, SlidersHorizontal, Wifi } from "lucide-react";
 import { ReelCalendar, type ReelHistoryEntry } from "@/components/reels/ReelCalendar";
 import { ManualControl } from "@/components/reels/ManualControl";
 
+// Guess format from caption text
+function guessFormat(caption: string): string {
+  const c = caption.toLowerCase();
+  if (c.includes("spot") || c.includes("pick") || c.includes("rater")) return "pick";
+  if (c.includes("budget") || c.includes("cout") || c.includes("jour")) return "budget";
+  if (c.includes("expect") || c.includes("reality") || c.includes("avant")) return "avantapres";
+  if (c.includes("vs") || c.includes("moins cher") || c.includes("compare")) return "cost-vs";
+  if (c.includes("quand") || c.includes("best time") || c.includes("saison")) return "best-time";
+  if (c.includes("top") || c.includes("classement")) return "leaderboard";
+  if (c.includes("humor") || c.includes("quand tu")) return "humor";
+  if (c.includes("partir") || c.includes("mois")) return "month";
+  return "pick";
+}
+
+interface Publication {
+  id: string;
+  platform: string;
+  type: string;
+  caption: string;
+  publishedAt: string;
+  impressions: number;
+  interactions: number;
+}
+
 export default function ReelsPage() {
-  // ── State ──────────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<ReelHistoryEntry[]>([]);
-
   const [historyLoading, setHistoryLoading] = useState(true);
-
   const [historyError, setHistoryError] = useState(false);
-  const [isLive, setIsLive] = useState(false);
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
-
+  // Fetch from /api/social-stats (live data) instead of broken reel-history.jsonl
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch("/api/data/social-distributor/data/reel-history.jsonl");
+      const res = await fetch("/api/social-stats");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const raw = Array.isArray(json.data) ? json.data : [];
-      // Map API fields to component interface
-      const entries: ReelHistoryEntry[] = raw.map((r: Record<string, unknown>) => ({
-        format: (r.format as string) || "pick",
-        destination: (r.destination as string) || undefined,
-        articleId: r.postId || r.articleId || undefined,
-        publishedAt: (r.date as string) || (r.publishedAt as string) || new Date().toISOString(),
-        igPermalink: (r.permalink as string) || (r.igPermalink as string) || undefined,
-        plays: (r.plays as number) || undefined,
-        engagement: (r.engagement as number) || undefined,
-        slot: (r.slot as string) || undefined,
-        reason: (r.reason as string) || undefined,
-        isBreakingNews: (r.isBreakingNews as boolean) || false,
+      const data = await res.json();
+
+      const pubs: Publication[] = data.publications || [];
+
+      // Map publications to ReelHistoryEntry format for the calendar
+      const entries: ReelHistoryEntry[] = pubs.map((p) => ({
+        format: guessFormat(p.caption || ""),
+        destination: p.caption?.split("\n")[0]?.slice(0, 50) || undefined,
+        publishedAt: p.publishedAt,
+        igPermalink: p.platform === "instagram" ? `https://instagram.com` : undefined,
+        plays: p.impressions,
+        engagement: p.interactions,
+        slot: undefined,
+        reason: p.platform,
+        isBreakingNews: false,
       }));
+
       setHistory(entries);
-      setIsLive(entries.length > 0);
       setHistoryError(false);
     } catch {
-      // Expected when no history file exists yet
       setHistory([]);
       setHistoryError(true);
     } finally {
@@ -53,8 +72,6 @@ export default function ReelsPage() {
     fetchHistory();
   }, [fetchHistory]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   const totalReels = history.length;
 
   return (
@@ -62,21 +79,21 @@ export default function ReelsPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800/80 shrink-0 flex-wrap gap-y-2">
         <Film className="w-4 h-4 text-amber-500" />
-        <h1 className="text-sm font-semibold text-white tracking-tight">Reels</h1>
+        <h1 className="text-sm font-semibold text-white tracking-tight">Planner</h1>
 
-        {isLive && (
+        {totalReels > 0 && (
           <Badge
             variant="outline"
             className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
           >
             <Wifi className="w-2.5 h-2.5" />
-            {totalReels} reels
+            {totalReels} posts
           </Badge>
         )}
 
         {historyError && (
           <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs">
-            pas de donnees
+            no data
           </Badge>
         )}
       </div>
