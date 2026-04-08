@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { usePolling } from "@/lib/usePolling";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Video, TrendingUp, Eye, Heart, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Video, TrendingUp, Eye, Heart, Users, Upload, Check, Loader2 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,17 +58,113 @@ const VERDICT_COLORS: Record<string, string> = {
 // Component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// CSV Parser — TikTok Studio export format
+// ---------------------------------------------------------------------------
+
+function parseTikTokCSV(text: string): TikTokVideo[] {
+  const lines = text.trim().split("\n");
+  if (lines.length < 2) return [];
+
+  // Detect separator
+  const sep = lines[0].includes("\t") ? "\t" : ",";
+  const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+
+  return lines.slice(1).map((line) => {
+    const cols = line.split(sep).map((c) => c.trim().replace(/^"|"$/g, ""));
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = cols[i] || ""; });
+
+    return {
+      title: row["title"] || row["video title"] || row["titre"] || "Untitled",
+      format: row["format"] || guessFormat(row["title"] || row["video title"] || row["titre"] || ""),
+      date: row["date"] || row["post date"] || row["date de publication"] || new Date().toISOString().slice(0, 10),
+      duration: parseInt(row["duration"] || row["duree"] || "0", 10),
+      views: parseInt(row["views"] || row["video views"] || row["vues"] || "0", 10),
+      likes: parseInt(row["likes"] || "0", 10),
+      comments: parseInt(row["comments"] || row["commentaires"] || "0", 10),
+      shares: parseInt(row["shares"] || row["partages"] || "0", 10),
+    };
+  }).filter((v) => v.title !== "Untitled" || v.views > 0);
+}
+
+function guessFormat(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes("spot") || t.includes("pick")) return "pick";
+  if (t.includes("budget") || t.includes("astuce")) return "budget";
+  if (t.includes("expect") || t.includes("avant") || t.includes("reality")) return "avantapres";
+  if (t.includes("vs") || t.includes("versus")) return "versus";
+  if (t.includes("humor") || t.includes("quand")) return "humor";
+  if (t.includes("best time") || t.includes("quand partir")) return "best-time";
+  if (t.includes("leaderboard") || t.includes("top")) return "leaderboard";
+  if (t.includes("cost") || t.includes("cout")) return "cost-vs";
+  return "pick";
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function TikTokTab() {
-  const { data: raw, loading } = usePolling<TikTokStats>(
+  const { data: raw, loading, refetch } = usePolling<TikTokStats>(
     "/api/data/tiktok-stats.json",
     300_000
   );
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
     if (!raw) return null;
     const d = raw as unknown as { data?: TikTokStats };
     return d?.data ?? (raw as TikTokStats);
   }, [raw]);
+
+  const handleCSVUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadResult(null);
+
+    try {
+      const text = await file.text();
+      const videos = parseTikTokCSV(text);
+
+      if (videos.length === 0) {
+        setUploadResult("No videos found in CSV");
+        return;
+      }
+
+      // Merge with existing data (keep manual entries, update matching ones)
+      const existing = stats?.videos || [];
+      const merged = [...existing];
+      for (const v of videos) {
+        const idx = merged.findIndex(
+          (m) => m.title === v.title || (m.date === v.date && m.views === v.views)
+        );
+        if (idx >= 0) merged[idx] = v;
+        else merged.push(v);
+      }
+
+      const res = await fetch("/api/tiktok/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videos: merged }),
+      });
+
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+
+      setUploadResult(`${videos.length} videos uploaded`);
+      // Refresh data after a short delay (GitHub cache)
+      setTimeout(() => refetch(), 3000);
+    } catch (err) {
+      setUploadResult(`Error: ${err}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [stats, refetch]);
 
   if (loading || !stats) {
     return (
@@ -155,9 +252,34 @@ export function TikTokTab() {
             </table>
           </div>
 
-          <p className="text-[10px] text-zinc-600 mt-3">
-            Data from tiktok-stats.json — update manually or via CSV import
-          </p>
+          <div className="flex items-center gap-3 mt-3">
+            <p className="text-[10px] text-zinc-600 flex-1">
+              Data from tiktok-stats.json
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.tsv,.txt"
+              className="hidden"
+              onChange={handleCSVUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-7 border-zinc-700 text-zinc-400 hover:text-white"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : uploadResult ? (
+                <Check className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <Upload className="w-3 h-3" />
+              )}
+              {uploading ? "Uploading..." : uploadResult || "Import CSV"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
