@@ -70,7 +70,7 @@ const CARDS: KpiCardConfig[] = [
   },
   {
     key: "tiktokViews",
-    label: "TikTok Views 7j",
+    label: "Vues TikTok 7j",
     icon: Video,
     iconColor: "text-cyan-400",
     deltaKey: "delta7d",
@@ -88,7 +88,7 @@ const CARDS: KpiCardConfig[] = [
   },
   {
     key: "costMonth",
-    label: "Cout LLM mois",
+    label: "Couts LLM mois",
     icon: DollarSign,
     iconColor: "text-emerald-400",
     deltaKey: "delta30d",

@@ -26,13 +26,13 @@ import {
 } from "@/components/ui/tooltip";
 
 const navItems = [
-  { href: "/", label: "Morning Brief", icon: Sunrise },
-  { href: "/growth", label: "Growth", icon: TrendingUp },
+  { href: "/", label: "Brief du Matin", icon: Sunrise },
+  { href: "/growth", label: "Croissance", icon: TrendingUp },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/reels", label: "Reels", icon: Film },
-  { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/content", label: "Content", icon: FileText },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/costs", label: "Couts", icon: DollarSign },
+  { href: "/content", label: "Contenu", icon: FileText },
+  { href: "/tasks", label: "Taches", icon: CheckSquare },
 ];
 
 export function Sidebar() {

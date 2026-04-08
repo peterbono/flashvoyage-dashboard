@@ -87,7 +87,7 @@ export function TikTokTab() {
                   <th className="text-right py-2 text-zinc-500 font-medium">Videos</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Vues moy.</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Likes moy.</th>
-                  <th className="text-right py-2 text-zinc-500 font-medium">Like rate</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Taux de like</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Verdict</th>
                 </tr>
               </thead>

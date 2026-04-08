@@ -71,9 +71,9 @@ export function CostTicker({ data, loading }: Props) {
   }, [data]);
 
   const metrics = [
-    { label: "Today", value: today },
-    { label: "This Week", value: week },
-    { label: "This Month", value: month },
+    { label: "Aujourd'hui", value: today },
+    { label: "Cette semaine", value: week },
+    { label: "Ce mois", value: month },
   ];
 
   return (
@@ -82,7 +82,7 @@ export function CostTicker({ data, loading }: Props) {
         <div className="flex items-center gap-1.5 shrink-0">
           <DollarSign className="w-3.5 h-3.5 text-amber-500" />
           <span className="text-[12px] font-semibold text-gray-700 dark:text-zinc-300">
-            LLM Costs
+            Couts LLM
           </span>
         </div>
 

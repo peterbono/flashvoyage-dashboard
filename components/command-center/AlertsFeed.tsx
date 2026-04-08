@@ -56,11 +56,11 @@ function buildTokenAlerts(tokens: TokensData | null): Alert[] {
         id: `token-${key}`,
         type: "token_expiry",
         severity: days <= 3 ? "error" : "warning",
-        title: `${label} token expiring`,
+        title: `Token ${label} expire bientot`,
         detail:
           days <= 0
-            ? "Token has expired!"
-            : `Expires in ${days} day${days !== 1 ? "s" : ""} (${expiry.slice(0, 10)})`,
+            ? "Token expire !"
+            : `Expire dans ${days} jour${days !== 1 ? "s" : ""} (${expiry.slice(0, 10)})`,
         timestamp: new Date().toISOString(),
       });
     }
@@ -82,8 +82,8 @@ function buildWorkflowAlerts(workflows: WorkflowsPayload | null): Alert[] {
       id: `wf-${wf.id}`,
       type: "workflow_failure" as const,
       severity: "error" as const,
-      title: `${wf.label} failed`,
-      detail: `Last run failed at ${new Date(
+      title: `${wf.label} en echec`,
+      detail: `Dernier run echoue le ${new Date(
         wf.latestRun!.updated_at
       ).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`,
       timestamp: wf.latestRun!.updated_at,
@@ -129,7 +129,7 @@ export function AlertsFeed({ tokensData, workflowData, loading }: Props) {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-zinc-800/50">
           <Bell className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
           <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
-            Alerts
+            Alertes
           </span>
         </div>
         <div className="p-4 space-y-2">
@@ -150,12 +150,12 @@ export function AlertsFeed({ tokensData, workflowData, loading }: Props) {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-zinc-800/50">
           <Bell className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
           <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
-            Alerts
+            Alertes
           </span>
         </div>
         <div className="px-4 py-6 text-center">
           <p className="text-[12px] text-gray-400 dark:text-zinc-600">
-            No active alerts — all systems nominal
+            Aucune alerte — tous les systemes OK
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ export function AlertsFeed({ tokensData, workflowData, loading }: Props) {
         <div className="flex items-center gap-2">
           <Bell className="w-3.5 h-3.5 text-amber-500" />
           <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
-            Alerts
+            Alertes
           </span>
           <Badge
             variant="outline"
@@ -212,7 +212,7 @@ export function AlertsFeed({ tokensData, workflowData, loading }: Props) {
                   rel="noopener noreferrer"
                   className="text-[11px] text-blue-500 hover:text-blue-600 dark:text-blue-400"
                 >
-                  View logs
+                  Voir les logs
                 </a>
               )}
             </div>

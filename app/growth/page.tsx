@@ -82,7 +82,7 @@ export default function GrowthPage() {
         </div>
         <div>
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-            Growth
+            Croissance
           </h1>
           <p className="text-[12px] text-gray-500 dark:text-zinc-500">
             Performance par format et audience
