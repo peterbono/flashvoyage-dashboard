@@ -3,21 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Film, CalendarDays, BarChart3, SlidersHorizontal, Wifi, Video } from "lucide-react";
+import { Film, CalendarDays, SlidersHorizontal, Wifi } from "lucide-react";
 import { ReelCalendar, type ReelHistoryEntry } from "@/components/reels/ReelCalendar";
-import { FormatPerformance, type PerformanceWeights } from "@/components/reels/FormatPerformance";
-import { ManualControl, type ABTestsData } from "@/components/reels/ManualControl";
-import { TikTokTab } from "@/components/reels/TikTokTab";
+import { ManualControl } from "@/components/reels/ManualControl";
 
 export default function ReelsPage() {
   // ── State ──────────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<ReelHistoryEntry[]>([]);
-  const [weights, setWeights] = useState<PerformanceWeights | null>(null);
-  const [abTests, setAbTests] = useState<ABTestsData | null>(null);
 
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [weightsLoading, setWeightsLoading] = useState(true);
-  const [abLoading, setAbLoading] = useState(true);
 
   const [historyError, setHistoryError] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -55,37 +49,9 @@ export default function ReelsPage() {
     }
   }, []);
 
-  const fetchWeights = useCallback(async () => {
-    try {
-      const res = await fetch("/api/data/social-distributor/reels/data/performance-weights.json");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setWeights(json.data ?? null);
-    } catch {
-      setWeights(null);
-    } finally {
-      setWeightsLoading(false);
-    }
-  }, []);
-
-  const fetchAbTests = useCallback(async () => {
-    try {
-      const res = await fetch("/api/data/social-distributor/data/ab-tests.json");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setAbTests(json.data ?? null);
-    } catch {
-      setAbTests(null);
-    } finally {
-      setAbLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchHistory();
-    fetchWeights();
-    fetchAbTests();
-  }, [fetchHistory, fetchWeights, fetchAbTests]);
+  }, [fetchHistory]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -121,21 +87,11 @@ export default function ReelsPage() {
           <TabsList variant="line" className="mb-4 overflow-x-auto">
             <TabsTrigger value="calendar" className="gap-1.5 text-xs sm:text-sm">
               <CalendarDays className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Calendrier</span>
-              <span className="sm:hidden">Cal.</span>
+              Calendar
             </TabsTrigger>
-            <TabsTrigger value="performance" className="gap-1.5 text-xs sm:text-sm">
-              <BarChart3 className="w-3.5 h-3.5" />
-              Perf.
-            </TabsTrigger>
-            <TabsTrigger value="tiktok" className="gap-1.5 text-xs sm:text-sm">
-              <Video className="w-3.5 h-3.5" />
-              TikTok
-            </TabsTrigger>
-            <TabsTrigger value="control" className="gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger value="publish" className="gap-1.5 text-xs sm:text-sm">
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Controle</span>
-              <span className="sm:hidden">Ctrl</span>
+              Manual Publish
             </TabsTrigger>
           </TabsList>
 
@@ -143,20 +99,8 @@ export default function ReelsPage() {
             <ReelCalendar history={history} loading={historyLoading} />
           </TabsContent>
 
-          <TabsContent value="performance">
-            <FormatPerformance
-              history={history}
-              weights={weights}
-              loading={weightsLoading}
-            />
-          </TabsContent>
-
-          <TabsContent value="tiktok">
-            <TikTokTab />
-          </TabsContent>
-
-          <TabsContent value="control">
-            <ManualControl abTests={abTests} loading={abLoading} />
+          <TabsContent value="publish">
+            <ManualControl abTests={null} loading={false} />
           </TabsContent>
         </Tabs>
       </div>
