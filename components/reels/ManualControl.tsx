@@ -84,9 +84,9 @@ const FORMAT_LABELS: Record<string, string> = {
   humor: "Humor",
   "humor-tweet": "Humor Tweet",
   versus: "Versus",
-  budget: "Budget Jour",
-  avantapres: "Avant/Apres",
-  month: "Ou Partir En",
+  budget: "Daily Budget",
+  avantapres: "Before/After",
+  month: "Where to Go",
 };
 
 const SLOT_LABELS: Record<string, string> = {
@@ -129,8 +129,8 @@ function getNextSlots(count: number): { utcHour: string; dow: number; format: st
         }
       }
 
-      const dayName = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"][cursor.getUTCDay()];
-      const dateStr = cursor.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+      const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][cursor.getUTCDay()];
+      const dateStr = cursor.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 
       slots.push({
         utcHour: hourKey,
@@ -193,18 +193,18 @@ export function ManualControl({ abTests, loading }: Props) {
       if (res.ok && data.triggered) {
         setPublishResult({
           ok: true,
-          message: `Workflow lance avec succes${data.runId ? ` (run #${data.runId})` : ""}`,
+          message: `Workflow launched successfully${data.runId ? ` (run #${data.runId})` : ""}`,
         });
       } else {
         setPublishResult({
           ok: false,
-          message: data.error ?? "Echec du declenchement",
+          message: data.error ?? "Failed to trigger workflow",
         });
       }
     } catch (err) {
       setPublishResult({
         ok: false,
-        message: `Erreur reseau: ${String(err)}`,
+        message: `Network error: ${String(err)}`,
       });
     } finally {
       setPublishing(false);
@@ -221,7 +221,7 @@ export function ManualControl({ abTests, loading }: Props) {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Calendar className="w-4 h-4 text-amber-500" />
-            Prochains 3 Reels
+            Next 3 Reels
           </CardTitle>
           <CardDescription>
             Preview du smart scheduler (base calendar)
@@ -261,7 +261,7 @@ export function ManualControl({ abTests, loading }: Props) {
             ))}
           </div>
           <p className="text-xs text-zinc-600 mt-3">
-            Les formats peuvent changer en temps reel selon les breaking news, trends et performances.
+            Formats may change in real-time based on breaking news, trends, and performance.
           </p>
         </CardContent>
       </Card>
@@ -271,10 +271,10 @@ export function ManualControl({ abTests, loading }: Props) {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Rocket className="w-4 h-4 text-amber-500" />
-            Publication manuelle
+            Manual Publish
           </CardTitle>
           <CardDescription>
-            Forcer la publication d&apos;un reel hors planning
+            Force publish a reel outside schedule
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -284,7 +284,7 @@ export function ManualControl({ abTests, loading }: Props) {
               <Label className="text-zinc-400 text-xs">Format</Label>
               <Select value={selectedFormat} onValueChange={(v) => setSelectedFormat(v ?? "")}>
                 <SelectTrigger className="bg-zinc-800/50 border-zinc-700 text-white h-9 w-full">
-                  <SelectValue placeholder="Choisir un format..." />
+                  <SelectValue placeholder="Choose a format..." />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800">
                   {ALL_FORMATS.map((f) => (
@@ -299,7 +299,7 @@ export function ManualControl({ abTests, loading }: Props) {
             {/* Article ID */}
             <div className="space-y-2">
               <Label className="text-zinc-400 text-xs">
-                Article ID <span className="text-zinc-600">(optionnel)</span>
+                Article ID <span className="text-zinc-600">(optional)</span>
               </Label>
               <Input
                 value={articleId}
@@ -315,7 +315,7 @@ export function ManualControl({ abTests, loading }: Props) {
                 <FlaskConical className="w-4 h-4 text-zinc-400" />
                 <div>
                   <span className="text-sm text-white">Mode test</span>
-                  <p className="text-xs text-zinc-500">Genere le reel sans le publier</p>
+                  <p className="text-xs text-zinc-500">Generate reel without publishing</p>
                 </div>
               </div>
               <button
@@ -344,12 +344,12 @@ export function ManualControl({ abTests, loading }: Props) {
               {publishing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Lancement...
+                  Launching...
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4" />
-                  {testOnly ? "Tester maintenant" : "Publier maintenant"}
+                  {testOnly ? "Test Now" : "Publish Now"}
                 </>
               )}
             </Button>
@@ -386,36 +386,36 @@ export function ManualControl({ abTests, loading }: Props) {
           </CardTitle>
           <CardDescription>
             {abTests?.meta?.totalTestsRun
-              ? `${abTests.meta.totalTestsRun} tests effectues, ${abTests.meta.totalWins} gagnants`
-              : "Aucun test effectue"}
+              ? `${abTests.meta.totalTestsRun} tests run, ${abTests.meta.totalWins} winners`
+              : "No tests run"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center h-20">
-              <span className="text-zinc-500 text-sm">Chargement...</span>
+              <span className="text-zinc-500 text-sm">Loading...</span>
             </div>
           ) : !hasActiveTests && !hasCompletedTests ? (
             <div className="flex flex-col items-center justify-center h-24 text-zinc-600 text-sm">
               <FlaskConical className="w-6 h-6 mb-2 text-zinc-700" />
-              Aucun test A/B actif
+              No active A/B tests
               <span className="text-xs text-zinc-700 mt-1">
-                Les tests se lanceront automatiquement quand le systeme detecte une opportunite
+                Tests will launch automatically when the system detects an opportunity
               </span>
             </div>
           ) : (
             <div className="space-y-3">
               {hasActiveTests && (
                 <div>
-                  <span className="text-xs text-zinc-500 font-medium mb-2 block">Tests actifs</span>
+                  <span className="text-xs text-zinc-500 font-medium mb-2 block">Active Tests</span>
                   <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-800">
                         <TableHead className="text-zinc-400">Test</TableHead>
-                        <TableHead className="text-zinc-400">Variante A</TableHead>
-                        <TableHead className="text-zinc-400">Variante B</TableHead>
-                        <TableHead className="text-zinc-400">Statut</TableHead>
+                        <TableHead className="text-zinc-400">Variant A</TableHead>
+                        <TableHead className="text-zinc-400">Variant B</TableHead>
+                        <TableHead className="text-zinc-400">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -429,7 +429,7 @@ export function ManualControl({ abTests, loading }: Props) {
                           <TableCell>
                             <Badge variant="outline" className="border-amber-800/50 text-amber-400 gap-1 text-xs">
                               <AlertTriangle className="w-2.5 h-2.5" />
-                              {test.status ?? "en cours"}
+                              {test.status ?? "in progress"}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -442,13 +442,13 @@ export function ManualControl({ abTests, loading }: Props) {
 
               {hasCompletedTests && (
                 <div>
-                  <span className="text-xs text-zinc-500 font-medium mb-2 block">Tests termines</span>
+                  <span className="text-xs text-zinc-500 font-medium mb-2 block">Completed Tests</span>
                   <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-zinc-800">
                         <TableHead className="text-zinc-400">Test</TableHead>
-                        <TableHead className="text-zinc-400">Gagnant</TableHead>
+                        <TableHead className="text-zinc-400">Winner</TableHead>
                         <TableHead className="text-zinc-400">Lift</TableHead>
                       </TableRow>
                     </TableHeader>

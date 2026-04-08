@@ -136,7 +136,7 @@ export default function MorningBrief() {
     [socialStats, costEntries]
   );
 
-  const today = new Date().toLocaleDateString("fr-FR", {
+  const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",

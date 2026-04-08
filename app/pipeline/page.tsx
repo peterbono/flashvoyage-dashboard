@@ -14,7 +14,7 @@ const PipelineVisualizer = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center h-96">
-        <div className="text-zinc-500 text-sm">Chargement pipeline...</div>
+        <div className="text-zinc-500 text-sm">Loading pipeline...</div>
       </div>
     ),
   }
@@ -33,7 +33,7 @@ interface PipelineGroup {
 const GROUPS: PipelineGroup[] = [
   {
     label: "Articles",
-    description: "Generation et publication d'articles",
+    description: "Article generation and publishing",
     workflowIds: ["publish-article", "content-intelligence"],
   },
   {
@@ -54,19 +54,19 @@ function resolveStatus(
   group: PipelineGroup,
   data: WorkflowsPayload | null
 ): { status: Status; detail: string } {
-  if (!data?.workflows) return { status: "unknown", detail: "Pas de donnees" };
+  if (!data?.workflows) return { status: "unknown", detail: "No data" };
 
   const workflows = group.workflowIds
     .map((id) => data.workflows.find((w) => w.id === id))
     .filter(Boolean);
 
-  if (workflows.length === 0) return { status: "unknown", detail: "Pas de donnees" };
+  if (workflows.length === 0) return { status: "unknown", detail: "No data" };
 
   const failed = workflows.find((w) => w!.latestRun?.conclusion === "failure");
-  if (failed) return { status: "issue", detail: `${failed!.label} en echec` };
+  if (failed) return { status: "issue", detail: `${failed!.label} failed` };
 
   const running = workflows.find((w) => w!.latestRun?.status === "in_progress");
-  if (running) return { status: "running", detail: `${running!.label} en cours` };
+  if (running) return { status: "running", detail: `${running!.label} in progress` };
 
   const lastRun = workflows
     .map((w) => w!.latestRun?.updated_at)
@@ -75,7 +75,7 @@ function resolveStatus(
     .pop();
 
   const ago = lastRun
-    ? `Dernier run ${timeAgo(lastRun)}`
+    ? `Last run ${timeAgo(lastRun)}`
     : "OK";
 
   return { status: "ok", detail: ago };
@@ -84,16 +84,16 @@ function resolveStatus(
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `il y a ${mins}min`;
+  if (mins < 60) return `${mins} min ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `il y a ${hours}h`;
-  return `il y a ${Math.floor(hours / 24)}j`;
+  if (hours < 24) return `${hours} h ago`;
+  return `${Math.floor(hours / 24)} d ago`;
 }
 
 const STATUS_CONFIG: Record<Status, { dot: string; badge: string; label: string }> = {
   ok: { dot: "bg-emerald-400", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", label: "OK" },
-  issue: { dot: "bg-rose-400", badge: "bg-rose-500/10 text-rose-400 border-rose-500/30", label: "Erreur" },
-  running: { dot: "bg-amber-400 animate-pulse", badge: "bg-amber-500/10 text-amber-400 border-amber-500/30", label: "En cours" },
+  issue: { dot: "bg-rose-400", badge: "bg-rose-500/10 text-rose-400 border-rose-500/30", label: "Error" },
+  running: { dot: "bg-amber-400 animate-pulse", badge: "bg-amber-500/10 text-amber-400 border-amber-500/30", label: "Running" },
   unknown: { dot: "bg-zinc-600", badge: "bg-zinc-700/30 text-zinc-500 border-zinc-700", label: "N/A" },
 };
 
@@ -174,7 +174,7 @@ export default function PipelinePage() {
         className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors w-full justify-center py-2"
       >
         {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        {expanded ? "Masquer le pipeline detaille" : "Voir le pipeline detaille"}
+        {expanded ? "Hide detailed pipeline" : "Show detailed pipeline"}
       </button>
 
       {expanded && (

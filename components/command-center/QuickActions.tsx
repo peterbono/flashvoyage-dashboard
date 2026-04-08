@@ -32,7 +32,7 @@ const REEL_FORMATS = [
   { id: "humor", label: "Humor", emoji: "😂", color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60" },
   { id: "versus", label: "Versus", emoji: "⚔️", color: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60" },
   { id: "budget", label: "Budget", emoji: "💰", color: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" },
-  { id: "avantapres", label: "Avant/Apres", emoji: "🔄", color: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800/60" },
+  { id: "avantapres", label: "Before/After", emoji: "🔄", color: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800/60" },
   { id: "month", label: "Month", emoji: "📅", color: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800/60" },
 ] as const;
 
@@ -179,7 +179,7 @@ export function QuickActions({ workflowData, onRefreshWorkflows }: Props) {
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {/* Publier Reel */}
+        {/* Publish Reel */}
         <Button
           variant="outline"
           className="h-auto py-3 px-3 flex flex-col items-start gap-1.5 text-left"
@@ -188,14 +188,14 @@ export function QuickActions({ workflowData, onRefreshWorkflows }: Props) {
         >
           <div className="flex items-center gap-2 w-full">
             {btnIcon("reel", Film)}
-            <span className="text-[13px] font-medium">Publier Reel</span>
+            <span className="text-[13px] font-medium">Publish Reel</span>
           </div>
           <span className="text-[11px] text-gray-400 dark:text-zinc-600">
             Choose format & publish
           </span>
         </Button>
 
-        {/* Generer Article */}
+        {/* Generate Article */}
         <Button
           variant="outline"
           className="h-auto py-3 px-3 flex flex-col items-start gap-1.5 text-left"
@@ -204,7 +204,7 @@ export function QuickActions({ workflowData, onRefreshWorkflows }: Props) {
         >
           <div className="flex items-center gap-2 w-full">
             {btnIcon("article", FileText)}
-            <span className="text-[13px] font-medium">Generer Article</span>
+            <span className="text-[13px] font-medium">Generate Article</span>
           </div>
           <span className="text-[11px] text-gray-400 dark:text-zinc-600">
             Auto-publish pipeline
@@ -252,9 +252,9 @@ export function QuickActions({ workflowData, onRefreshWorkflows }: Props) {
       <Dialog open={reelDialogOpen} onOpenChange={setReelDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Publier un Reel</DialogTitle>
+            <DialogTitle>Publish a Reel</DialogTitle>
             <DialogDescription>
-              Choisis le format du reel a publier
+              Choose the reel format to publish
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 py-2">
@@ -290,7 +290,7 @@ export function QuickActions({ workflowData, onRefreshWorkflows }: Props) {
               className="w-full sm:w-auto"
             >
               <Film className="w-4 h-4 mr-1.5" />
-              Publier
+              Publish
             </Button>
           </DialogFooter>
         </DialogContent>

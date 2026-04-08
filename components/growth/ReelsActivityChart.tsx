@@ -54,7 +54,7 @@ export function ReelsActivityChart({ data, loading }: Props) {
 
     return Object.entries(counts).map(([date, info]) => ({
       date,
-      label: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+      label: new Date(date).toLocaleDateString("en-US", { day: "numeric", month: "short" }),
       ...info,
     }));
   }, [data]);
@@ -81,7 +81,7 @@ export function ReelsActivityChart({ data, loading }: Props) {
         <div className="flex items-center gap-2 mb-4">
           <Film className="w-4 h-4 text-violet-400" />
           <span className="text-sm font-semibold text-white">
-            Reels publies (14j)
+            Reels Published (14d)
           </span>
           <Badge
             variant="outline"

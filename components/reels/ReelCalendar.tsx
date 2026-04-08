@@ -37,8 +37,8 @@ const FORMAT_COLORS: Record<string, { dot: string; bg: string; text: string; lab
   "humor-tweet": { dot: "bg-orange-400", bg: "bg-orange-400/10", text: "text-orange-300", label: "Humor Tweet" },
   versus:     { dot: "bg-purple-500",  bg: "bg-purple-500/10",  text: "text-purple-400",  label: "Versus" },
   budget:     { dot: "bg-teal-500",    bg: "bg-teal-500/10",    text: "text-teal-400",    label: "Budget" },
-  avantapres: { dot: "bg-red-500",     bg: "bg-red-500/10",     text: "text-red-400",     label: "Avant/Apres" },
-  month:      { dot: "bg-amber-500",   bg: "bg-amber-500/10",   text: "text-amber-400",   label: "Ou Partir En" },
+  avantapres: { dot: "bg-red-500",     bg: "bg-red-500/10",     text: "text-red-400",     label: "Before/After" },
+  month:      { dot: "bg-amber-500",   bg: "bg-amber-500/10",   text: "text-amber-400",   label: "Where to Go" },
 };
 
 function getFormatStyle(format: string) {
@@ -70,11 +70,11 @@ function getFirstDayOfMonth(year: number, month: number): number {
 }
 
 const MONTH_NAMES = [
-  "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
-const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ export function ReelCalendar({ history, loading }: Props) {
     <>
       <Card className="border-zinc-800/50 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-white">Calendrier des Reels</CardTitle>
+          <CardTitle className="text-white">Reels Calendar</CardTitle>
           <CardAction>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="border-zinc-700 text-zinc-400 text-xs">
@@ -165,7 +165,7 @@ export function ReelCalendar({ history, loading }: Props) {
 
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <span className="text-zinc-500 text-sm">Chargement...</span>
+              <span className="text-zinc-500 text-sm">Loading...</span>
             </div>
           ) : (
             <>
@@ -257,7 +257,7 @@ export function ReelCalendar({ history, loading }: Props) {
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
               {selectedReel?.publishedAt
-                ? new Date(selectedReel.publishedAt).toLocaleString("fr-FR", {
+                ? new Date(selectedReel.publishedAt).toLocaleString("en-US", {
                     dateStyle: "long",
                     timeStyle: "short",
                   })
@@ -275,7 +275,7 @@ export function ReelCalendar({ history, loading }: Props) {
                   </Badge>
                 </div>
                 <div className="rounded-lg bg-zinc-800/50 p-3">
-                  <span className="text-xs text-zinc-500 block mb-0.5">Creneau</span>
+                  <span className="text-xs text-zinc-500 block mb-0.5">Time Slot</span>
                   <span className="text-sm text-white font-medium">{selectedReel.slot || "N/A"}</span>
                 </div>
               </div>
@@ -291,7 +291,7 @@ export function ReelCalendar({ history, loading }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   {selectedReel.plays !== undefined && (
                     <div className="rounded-lg bg-zinc-800/50 p-3">
-                      <span className="text-xs text-zinc-500 block mb-0.5">Vues</span>
+                      <span className="text-xs text-zinc-500 block mb-0.5">Views</span>
                       <span className="text-sm text-white font-medium flex items-center gap-1">
                         <Eye className="w-3 h-3 text-zinc-500" />
                         {selectedReel.plays.toLocaleString()}
@@ -312,7 +312,7 @@ export function ReelCalendar({ history, loading }: Props) {
 
               {selectedReel.reason && (
                 <div className="rounded-lg bg-zinc-800/50 p-3">
-                  <span className="text-xs text-zinc-500 block mb-0.5">Raison du scheduler</span>
+                  <span className="text-xs text-zinc-500 block mb-0.5">Scheduler Reason</span>
                   <span className="text-xs text-zinc-300 leading-relaxed">{selectedReel.reason}</span>
                 </div>
               )}
@@ -325,7 +325,7 @@ export function ReelCalendar({ history, loading }: Props) {
                   className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Voir sur Instagram
+                  View on Instagram
                 </a>
               )}
             </div>

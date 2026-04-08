@@ -85,7 +85,7 @@ function buildWorkflowAlerts(workflows: WorkflowsPayload | null): Alert[] {
       title: `${wf.label} failed`,
       detail: `Last run failed at ${new Date(
         wf.latestRun!.updated_at
-      ).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`,
+      ).toLocaleString("en-US", { timeZone: "Europe/Paris" })}`,
       timestamp: wf.latestRun!.updated_at,
       link: wf.latestRun!.html_url,
     }));

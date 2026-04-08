@@ -74,7 +74,7 @@ export function TikTokGrowthCard() {
               <span className="text-xs text-zinc-400">Total Views</span>
             </div>
             <span className="text-sm font-bold text-white">
-              {a.totalViews.toLocaleString("fr-FR")}
+              {a.totalViews.toLocaleString("en-US")}
             </span>
           </div>
 

@@ -51,7 +51,7 @@ interface KpiCardConfig {
 function formatCompact(v: number): string {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("fr-FR");
+  return v.toLocaleString("en-US");
 }
 
 function formatUsd(v: number): string {

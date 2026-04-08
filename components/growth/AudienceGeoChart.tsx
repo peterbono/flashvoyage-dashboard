@@ -22,7 +22,7 @@ export function AudienceGeoChart({ data, loading }: Props) {
       .slice(5)
       .reduce((sum, c) => sum + c.sessions, 0);
     if (othersTotal > 0) {
-      top5.push({ country: "Autres", sessions: othersTotal, percentage: 0 });
+      top5.push({ country: "Others", sessions: othersTotal, percentage: 0 });
     }
     return top5;
   }, [data]);
@@ -46,7 +46,7 @@ export function AudienceGeoChart({ data, loading }: Props) {
         <div className="flex items-center gap-2 mb-4">
           <Globe className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-semibold text-white">
-            Audience par pays (7j)
+            Audience by Country (7d)
           </span>
         </div>
 

@@ -32,8 +32,8 @@ const FORMAT_META: Record<string, { label: string; color: string; barColor: stri
   "humor-tweet": { label: "Humor Tweet",  color: "text-orange-300",  barColor: "bg-orange-400" },
   versus:        { label: "Versus",       color: "text-purple-400",  barColor: "bg-purple-500" },
   budget:        { label: "Budget",       color: "text-teal-400",    barColor: "bg-teal-500" },
-  avantapres:    { label: "Avant/Apres",  color: "text-red-400",     barColor: "bg-red-500" },
-  month:         { label: "Ou Partir En", color: "text-amber-400",   barColor: "bg-amber-500" },
+  avantapres:    { label: "Before/After",  color: "text-red-400",     barColor: "bg-red-500" },
+  month:         { label: "Where to Go", color: "text-amber-400",   barColor: "bg-amber-500" },
 };
 
 function getMeta(format: string) {
@@ -95,24 +95,24 @@ export function FormatPerformance({ history, weights, loading }: Props) {
     const avg = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : 0;
 
     if (avg === 0 || score === 0) {
-      return { label: "Pas de donnees", icon: <Minus className="w-3 h-3" />, color: "text-zinc-500" };
+      return { label: "No data", icon: <Minus className="w-3 h-3" />, color: "text-zinc-500" };
     }
 
     const ratio = score / avg;
     if (ratio > 1.2) {
-      return { label: "Augmenter", icon: <TrendingUp className="w-3 h-3" />, color: "text-emerald-400" };
+      return { label: "Increase", icon: <TrendingUp className="w-3 h-3" />, color: "text-emerald-400" };
     }
     if (ratio < 0.8) {
-      return { label: "Reduire", icon: <TrendingDown className="w-3 h-3" />, color: "text-red-400" };
+      return { label: "Reduce", icon: <TrendingDown className="w-3 h-3" />, color: "text-red-400" };
     }
-    return { label: "Maintenir", icon: <Minus className="w-3 h-3" />, color: "text-amber-400" };
+    return { label: "Maintain", icon: <Minus className="w-3 h-3" />, color: "text-amber-400" };
   }
 
   if (loading) {
     return (
       <Card className="border-zinc-800/50 bg-zinc-900/50">
         <CardContent className="flex items-center justify-center h-64">
-          <span className="text-zinc-500 text-sm">Chargement des performances...</span>
+          <span className="text-zinc-500 text-sm">Loading performance...</span>
         </CardContent>
       </Card>
     );
@@ -125,14 +125,14 @@ export function FormatPerformance({ history, weights, loading }: Props) {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-amber-500" />
-            Reels par format
+            Reels by Format
           </CardTitle>
         </CardHeader>
         <CardContent>
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-zinc-600 text-sm">
               <BarChart3 className="w-8 h-8 mb-2 text-zinc-700" />
-              Aucun reel publie pour le moment
+              No reels published yet
             </div>
           ) : (
             <div className="space-y-2">
@@ -166,7 +166,7 @@ export function FormatPerformance({ history, weights, loading }: Props) {
       {/* Performance table */}
       <Card className="border-zinc-800/50 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-white">Analyse par format</CardTitle>
+          <CardTitle className="text-white">Format Analysis</CardTitle>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
           <div className="overflow-x-auto">
@@ -174,10 +174,10 @@ export function FormatPerformance({ history, weights, loading }: Props) {
             <TableHeader>
               <TableRow className="border-zinc-800">
                 <TableHead className="text-zinc-400">Format</TableHead>
-                <TableHead className="text-zinc-400 text-right">Publies</TableHead>
-                <TableHead className="text-zinc-400 text-right">Score moyen</TableHead>
-                <TableHead className="text-zinc-400 text-right">Engagement moy.</TableHead>
-                <TableHead className="text-zinc-400">Recommandation</TableHead>
+                <TableHead className="text-zinc-400 text-right">Published</TableHead>
+                <TableHead className="text-zinc-400 text-right">Avg Score</TableHead>
+                <TableHead className="text-zinc-400 text-right">Avg Engagement</TableHead>
+                <TableHead className="text-zinc-400">Recommendation</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -228,7 +228,7 @@ export function FormatPerformance({ history, weights, loading }: Props) {
           {/* Recommendations from weights file */}
           {weights?.recommendations && weights.recommendations.length > 0 && (
             <div className="mt-4 pt-3 border-t border-zinc-800/50">
-              <span className="text-xs text-zinc-500 block mb-2">Notes du systeme</span>
+              <span className="text-xs text-zinc-500 block mb-2">System Notes</span>
               <div className="space-y-1">
                 {weights.recommendations.map((rec, i) => (
                   <p key={i} className="text-xs text-zinc-400 leading-relaxed">

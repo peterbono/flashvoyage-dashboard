@@ -60,7 +60,7 @@ export function IGReelsCard({ data, loading }: Props) {
                 <span className="text-xs text-zinc-400">Followers</span>
               </div>
               <span className="text-sm font-bold text-white">
-                {data.followerCount.toLocaleString("fr-FR")}
+                {data.followerCount.toLocaleString("en-US")}
               </span>
             </div>
           )}

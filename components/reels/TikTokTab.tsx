@@ -193,7 +193,7 @@ export function TikTokTab() {
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: Eye, label: "Total Views", value: a.totalViews.toLocaleString("fr-FR"), color: "text-cyan-400" },
+          { icon: Eye, label: "Total Views", value: a.totalViews.toLocaleString("en-US"), color: "text-cyan-400" },
           { icon: Heart, label: "Likes", value: String(a.totalLikes), color: "text-pink-400" },
           { icon: Users, label: "Followers", value: String(a.followers), color: "text-amber-400" },
           { icon: Video, label: "Videos", value: String(publicVideos.length), color: "text-violet-400" },

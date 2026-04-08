@@ -60,7 +60,7 @@ export function FormatPerformanceChart({ data, loading }: Props) {
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-4 h-4 text-amber-500" />
           <span className="text-sm font-semibold text-white">
-            Performance par format
+            Format Performance
           </span>
           <Badge
             variant="outline"

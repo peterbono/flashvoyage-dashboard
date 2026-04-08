@@ -56,7 +56,7 @@ export function FacebookCard({ data, loading }: Props) {
                 <span className="text-xs text-zinc-400">Followers</span>
               </div>
               <span className="text-sm font-bold text-white">
-                {data.pageFollowers.toLocaleString("fr-FR")}
+                {data.pageFollowers.toLocaleString("en-US")}
               </span>
             </div>
           )}
@@ -68,7 +68,7 @@ export function FacebookCard({ data, loading }: Props) {
                 <span className="text-xs text-zinc-400">Page Likes</span>
               </div>
               <span className="text-sm font-bold text-white">
-                {data.pageLikes.toLocaleString("fr-FR")}
+                {data.pageLikes.toLocaleString("en-US")}
               </span>
             </div>
           )}
