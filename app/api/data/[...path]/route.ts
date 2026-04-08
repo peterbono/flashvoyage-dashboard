@@ -36,6 +36,7 @@ const ALLOWED_PATHS = new Set([
   "social-distributor/reels/data/content-history.json",
   "social-distributor/data/audience-segments.json",
   "social-distributor/data/post-history.jsonl",
+  "tiktok-stats.json",
 ]);
 
 export async function GET(

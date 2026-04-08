@@ -36,11 +36,20 @@ function transformTokens(json: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function buildKpiData(
-  costEntries: CostHistoryEntry[] | null
-): KpiData | null {
-  if (!costEntries) return null;
+interface TikTokStatsData {
+  account: { followers: number; totalViews: number; totalLikes: number };
+}
 
+interface AudienceData {
+  byCountry: { country: string; sessions: number }[];
+}
+
+function buildKpiData(
+  costEntries: CostHistoryEntry[] | null,
+  tiktokStats: TikTokStatsData | null,
+  audienceData: AudienceData | null,
+  reelCount: number
+): KpiData | null {
   // Cost this month
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -53,10 +62,10 @@ function buildKpiData(
     .toISOString()
     .slice(0, 10);
 
-  const thisMonthCost = costEntries
+  const thisMonthCost = (costEntries || [])
     .filter((e) => e.date >= monthStart)
     .reduce((sum, e) => sum + (e.totalCostUSD || 0), 0);
-  const prevMonthCost = costEntries
+  const prevMonthCost = (costEntries || [])
     .filter((e) => e.date >= prevMonthStart && e.date <= prevMonthEnd)
     .reduce((sum, e) => sum + (e.totalCostUSD || 0), 0);
 
@@ -65,11 +74,23 @@ function buildKpiData(
       ? ((thisMonthCost - prevMonthCost) / prevMonthCost) * 100
       : 0;
 
+  // GA4 traffic from audience segments
+  const ga4Sessions = audienceData?.byCountry?.reduce(
+    (sum, c) => sum + (c.sessions || 0),
+    0
+  ) ?? 0;
+
+  // TikTok from tiktok-stats.json
+  const tkAccount = tiktokStats?.account;
+
+  // IG reels published = proxy for activity (real follower count needs IG API)
   return {
-    // Placeholder until we have live IG/TikTok/GA4 APIs
-    igFollowers: { value: 127, delta7d: 15.2 },
-    tiktokViews: { value: 4539, delta7d: 0 },
-    ga4Traffic: { value: 2340, delta7d: 8.5 },
+    igFollowers: { value: reelCount, delta7d: 0 },
+    tiktokViews: {
+      value: tkAccount?.totalViews ?? 0,
+      delta7d: 0,
+    },
+    ga4Traffic: { value: ga4Sessions, delta7d: 0 },
     costMonth: { value: thisMonthCost, delta30d: costDelta },
   };
 }
@@ -99,6 +120,18 @@ export default function MorningBrief() {
     unknown
   > | null>("/api/data/social-distributor/data/tokens.json", 300_000);
 
+  // 5. TikTok stats — polls every 5 min
+  const { data: tiktokRaw } = usePolling<TikTokStatsData>(
+    "/api/data/tiktok-stats.json",
+    300_000
+  );
+
+  // 6. GA4 audience — polls every 5 min
+  const { data: audienceRaw } = usePolling<AudienceData>(
+    "/api/data/social-distributor/data/audience-segments.json",
+    300_000
+  );
+
   // Transform data
   const reelEntries = reelData
     ? Array.isArray(reelData)
@@ -118,7 +151,19 @@ export default function MorningBrief() {
       : transformTokens(tokensRaw)
     : null;
 
-  const kpiData = useMemo(() => buildKpiData(costEntries), [costEntries]);
+  // Unwrap API responses
+  const tiktokStats = tiktokRaw
+    ? (tiktokRaw as unknown as { data?: TikTokStatsData })?.data ?? (tiktokRaw as TikTokStatsData)
+    : null;
+  const audienceStats = audienceRaw
+    ? (audienceRaw as unknown as { data?: AudienceData })?.data ?? (audienceRaw as AudienceData)
+    : null;
+  const reelCount = reelEntries?.length ?? 0;
+
+  const kpiData = useMemo(
+    () => buildKpiData(costEntries, tiktokStats, audienceStats, reelCount),
+    [costEntries, tiktokStats, audienceStats, reelCount]
+  );
 
   // Date header
   const today = new Date().toLocaleDateString("fr-FR", {

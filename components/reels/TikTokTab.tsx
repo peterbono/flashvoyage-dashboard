@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { usePolling } from "@/lib/usePolling";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Video, TrendingUp, Eye, Heart, Users } from "lucide-react";
@@ -8,7 +10,19 @@ import { Video, TrendingUp, Eye, Heart, Users } from "lucide-react";
 // Types
 // ---------------------------------------------------------------------------
 
-interface FormatStat {
+interface TikTokVideo {
+  title: string;
+  format: string;
+  date: string;
+  duration: number;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  visibility?: string;
+}
+
+interface FormatSummary {
   format: string;
   videos: number;
   avgViews: number;
@@ -17,27 +31,26 @@ interface FormatStat {
   verdict: string;
 }
 
-// TikTok data — hardcoded until API available
-const FORMAT_STATS: FormatStat[] = [
-  { format: "Trip Pick", videos: 4, avgViews: 396, avgLikes: 15, likeRate: 3.8, verdict: "STAR" },
-  { format: "Budget", videos: 3, avgViews: 548, avgLikes: 11, likeRate: 1.9, verdict: "Bon reach" },
-  { format: "Avant/Apres", videos: 1, avgViews: 603, avgLikes: 11, likeRate: 1.8, verdict: "OK" },
-  { format: "Best Time", videos: 1, avgViews: 130, avgLikes: 1, likeRate: 0.8, verdict: "Faible" },
-  { format: "Leaderboard", videos: 1, avgViews: 114, avgLikes: 2, likeRate: 1.8, verdict: "Faible reach" },
-  { format: "Versus", videos: 2, avgViews: 130, avgLikes: 1, likeRate: 0.8, verdict: "MORT" },
-  { format: "Humor", videos: 2, avgViews: 85, avgLikes: 1, likeRate: 0.6, verdict: "Trop tot" },
-];
-
-const TOTALS = { views: 4539, likes: 127, comments: 2, followers: 8, videos: 17 };
+interface TikTokStats {
+  account: {
+    followers: number;
+    totalViews: number;
+    totalLikes: number;
+    totalComments: number;
+  };
+  videos: TikTokVideo[];
+  formatSummary: FormatSummary[];
+  lastUpdated: string;
+}
 
 const VERDICT_COLORS: Record<string, string> = {
   STAR: "text-amber-400 bg-amber-500/10",
-  "Bon reach": "text-emerald-400 bg-emerald-500/10",
+  "Good reach": "text-emerald-400 bg-emerald-500/10",
   OK: "text-blue-400 bg-blue-500/10",
-  Faible: "text-zinc-500 bg-zinc-700/30",
-  "Faible reach": "text-zinc-500 bg-zinc-700/30",
-  MORT: "text-rose-400 bg-rose-500/10",
-  "Trop tot": "text-zinc-500 bg-zinc-700/30",
+  Weak: "text-zinc-500 bg-zinc-700/30",
+  "Low reach": "text-zinc-500 bg-zinc-700/30",
+  DEAD: "text-rose-400 bg-rose-500/10",
+  "Too early": "text-zinc-500 bg-zinc-700/30",
 };
 
 // ---------------------------------------------------------------------------
@@ -45,15 +58,48 @@ const VERDICT_COLORS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 export function TikTokTab() {
+  const { data: raw, loading } = usePolling<TikTokStats>(
+    "/api/data/tiktok-stats.json",
+    300_000
+  );
+
+  const stats = useMemo(() => {
+    if (!raw) return null;
+    const d = raw as unknown as { data?: TikTokStats };
+    return d?.data ?? (raw as TikTokStats);
+  }, [raw]);
+
+  if (loading || !stats) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-zinc-900 border-zinc-800/80">
+              <CardContent className="py-3">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-3 w-16 bg-zinc-700 rounded" />
+                  <div className="h-5 w-10 bg-zinc-800 rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const a = stats.account;
+  const publicVideos = stats.videos?.filter((v) => v.visibility !== "private") || [];
+
   return (
     <div className="space-y-4">
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { icon: Eye, label: "Vues totales", value: TOTALS.views.toLocaleString("fr-FR"), color: "text-cyan-400" },
-          { icon: Heart, label: "Likes", value: String(TOTALS.likes), color: "text-pink-400" },
-          { icon: Users, label: "Abonnes", value: String(TOTALS.followers), color: "text-amber-400" },
-          { icon: Video, label: "Videos", value: String(TOTALS.videos), color: "text-violet-400" },
+          { icon: Eye, label: "Total Views", value: a.totalViews.toLocaleString("fr-FR"), color: "text-cyan-400" },
+          { icon: Heart, label: "Likes", value: String(a.totalLikes), color: "text-pink-400" },
+          { icon: Users, label: "Followers", value: String(a.followers), color: "text-amber-400" },
+          { icon: Video, label: "Videos", value: String(publicVideos.length), color: "text-violet-400" },
         ].map((kpi) => (
           <Card key={kpi.label} className="bg-zinc-900 border-zinc-800/80">
             <CardContent className="py-3">
@@ -72,27 +118,26 @@ export function TikTokTab() {
         <CardContent className="py-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm font-semibold text-white">Performance par format TikTok</span>
+            <span className="text-sm font-semibold text-white">Format Performance</span>
             <Badge variant="outline" className="ml-auto text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400">
-              3-8 avril 2026
+              Updated {stats.lastUpdated}
             </Badge>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-zinc-800">
                   <th className="text-left py-2 text-zinc-500 font-medium">Format</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Videos</th>
-                  <th className="text-right py-2 text-zinc-500 font-medium">Vues moy.</th>
-                  <th className="text-right py-2 text-zinc-500 font-medium">Likes moy.</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Avg Views</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Avg Likes</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Like Rate</th>
                   <th className="text-right py-2 text-zinc-500 font-medium">Verdict</th>
                 </tr>
               </thead>
               <tbody>
-                {FORMAT_STATS.map((row) => (
+                {(stats.formatSummary || []).map((row) => (
                   <tr key={row.format} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                     <td className="py-2 text-zinc-300 font-medium">{row.format}</td>
                     <td className="py-2 text-right text-zinc-400">{row.videos}</td>
@@ -111,8 +156,52 @@ export function TikTokTab() {
           </div>
 
           <p className="text-[10px] text-zinc-600 mt-3">
-            Donnees manuelles — API TikTok en attente d&apos;app review
+            Data from tiktok-stats.json — update manually or via CSV import
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Individual videos */}
+      <Card className="bg-zinc-900 border-zinc-800/80">
+        <CardContent className="py-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Video className="w-4 h-4 text-violet-400" />
+            <span className="text-sm font-semibold text-white">All Videos</span>
+            <Badge variant="outline" className="ml-auto text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400">
+              {publicVideos.length} public
+            </Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left py-2 text-zinc-500 font-medium">Title</th>
+                  <th className="text-left py-2 text-zinc-500 font-medium">Format</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Date</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Views</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Likes</th>
+                  <th className="text-right py-2 text-zinc-500 font-medium">Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {publicVideos
+                  .sort((a, b) => b.views - a.views)
+                  .map((v, i) => (
+                    <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <td className="py-2 text-zinc-300 max-w-[200px] truncate">{v.title}</td>
+                      <td className="py-2 text-zinc-400">{v.format}</td>
+                      <td className="py-2 text-right text-zinc-500">{v.date.slice(5)}</td>
+                      <td className="py-2 text-right text-zinc-300">{v.views}</td>
+                      <td className="py-2 text-right text-zinc-300">{v.likes}</td>
+                      <td className="py-2 text-right text-zinc-300">
+                        {v.views > 0 ? ((v.likes / v.views) * 100).toFixed(1) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
