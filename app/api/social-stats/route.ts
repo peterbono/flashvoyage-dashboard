@@ -146,13 +146,19 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
 
 export async function GET() {
   try {
-    // Fetch tokens from content repo
-    const tokensData = (await fetchContentFile("social-distributor/data/tokens.json")) as {
-      facebook?: { token: string };
-      threads?: { token: string; expiresAt: string };
-    };
+    // Use env var (tokens.json is gitignored, not available via raw GitHub)
+    const fbToken = process.env.FB_PAGE_TOKEN || "";
 
-    const fbToken = tokensData?.facebook?.token || process.env.FB_PAGE_TOKEN || "";
+    // Try to get Threads token expiry from content repo (non-fatal)
+    let threadsExpiresAt: string | null = null;
+    try {
+      const tokensData = (await fetchContentFile("social-distributor/data/tokens.json")) as {
+        threads?: { expiresAt: string };
+      };
+      threadsExpiresAt = tokensData?.threads?.expiresAt || null;
+    } catch {
+      // tokens.json is gitignored — expected 404
+    }
 
     // Parallel fetch all sources
     const [igStats, fbStats, audienceData, tiktokData] = await Promise.all([
@@ -179,7 +185,7 @@ export async function GET() {
 
     // Threads token status
     let threadsStatus: "active" | "expiring" | "expired" = "active";
-    const threadsExpiry = tokensData?.threads?.expiresAt || null;
+    const threadsExpiry = threadsExpiresAt;
     if (threadsExpiry) {
       const daysLeft = Math.floor(
         (new Date(threadsExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
