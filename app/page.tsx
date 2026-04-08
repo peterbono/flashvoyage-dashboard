@@ -11,6 +11,8 @@ import { PublicationTable, type Publication } from "@/components/growth/Publicat
 import { SystemHealthLight } from "@/components/morning-brief/SystemHealthLight";
 import { PostingGoalTracker } from "@/components/morning-brief/PostingGoalTracker";
 import { BestTimeRecommender } from "@/components/morning-brief/BestTimeRecommender";
+import { FormatPerformanceChart } from "@/components/growth/FormatPerformanceChart";
+import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
 import type { WorkflowsPayload } from "@/components/command-center/SystemHealthBanner";
 import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 import { CostTicker, type CostHistoryEntry } from "@/components/command-center/CostTicker";
@@ -31,7 +33,7 @@ interface SocialStats {
     pageFollowers: number | null;
     totalReach: number;
   };
-  ga4: { sessions7d: number };
+  ga4: { sessions7d: number; topCountries?: { country: string; sessions: number }[] };
   tiktok: { followers: number; totalViews: number; totalLikes: number };
   publications: Publication[];
   deltas: { impressions: number; interactions: number; publications: number };
@@ -83,6 +85,24 @@ export default function MorningBrief() {
     string,
     unknown
   > | null>("/api/data/social-distributor/data/tokens.json", 300_000);
+
+  // Performance weights for format chart
+  const { data: perfData, loading: perfLoading } =
+    usePolling<{ formatScores: Record<string, number>; killedFormats: string[]; recommendations: string[] }>(
+      "/api/data/social-distributor/reels/data/performance-weights.json",
+      300_000
+    );
+
+  const perfWeights = useMemo(() => {
+    if (!perfData) return null;
+    const d = perfData as unknown as { data?: typeof perfData };
+    return d?.data ?? perfData;
+  }, [perfData]);
+
+  const audienceForGeo = useMemo(() => {
+    if (!socialStats?.ga4?.topCountries) return null;
+    return { byCountry: socialStats.ga4.topCountries };
+  }, [socialStats]);
 
   // Transform
   const costEntries = costData
@@ -234,14 +254,18 @@ export default function MorningBrief() {
       <PublicationTable publications={publications} loading={socialLoading} />
 
       {/* ── INTELLIGENCE ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <PostingGoalTracker
-          todayPublications={(publications)
-            .filter((p) => p.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
-            .map((p) => ({ platform: p.platform }))}
-        />
-        <BestTimeRecommender variant="compact" />
+      <PostingGoalTracker
+        todayPublications={(publications)
+          .filter((p) => p.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
+          .map((p) => ({ platform: p.platform }))}
+      />
+
+      {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <BestTimeRecommender variant="full" />
+        <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
       </div>
+      <AudienceGeoChart data={audienceForGeo} loading={socialLoading} />
 
       {/* ── SYSTEM ──────────────────────────────────────────────── */}
       <SystemHealthLight data={workflowData} loading={wfLoading} />
