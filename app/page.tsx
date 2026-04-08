@@ -168,9 +168,6 @@ export default function MorningBrief() {
         <BestTimeRecommender variant="compact" />
       </div>
 
-      {/* 3. TikTok Actions */}
-      <TikTokActions reels={reelEntries} loading={reelLoading} />
-
       {/* 3. System Health */}
       <SystemHealthLight data={workflowData} loading={wfLoading} />
 
