@@ -7,7 +7,7 @@ import { Globe } from "lucide-react";
 
 interface Props {
   data: {
-    byCountry: { country: string; sessions: number; percentage: number }[];
+    byCountry: { country: string; sessions: number; percentage?: number }[];
   } | null;
   loading: boolean;
 }
