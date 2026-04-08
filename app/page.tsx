@@ -25,6 +25,11 @@ interface SocialStats {
     totalComments: number;
     followerCount: number | null;
   };
+  facebook: {
+    pageLikes: number | null;
+    pageFollowers: number | null;
+    totalReach: number;
+  };
   ga4: { sessions7d: number };
   tiktok: { followers: number; totalViews: number; totalLikes: number };
   fetchedAt: string;

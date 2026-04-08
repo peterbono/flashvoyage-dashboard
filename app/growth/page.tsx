@@ -8,6 +8,7 @@ import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
 import { ReelsActivityChart } from "@/components/growth/ReelsActivityChart";
 import { TikTokGrowthCard } from "@/components/growth/TikTokGrowthCard";
 import { IGReelsCard } from "@/components/growth/IGReelsCard";
+import { FacebookCard } from "@/components/growth/FacebookCard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +33,12 @@ interface SocialStats {
     totalLikes: number;
     totalComments: number;
     followerCount: number | null;
+  };
+  facebook: {
+    pageLikes: number | null;
+    pageFollowers: number | null;
+    recentPosts: { id: string; message?: string; likes: number; comments: number; shares: number; date: string }[];
+    totalReach: number;
   };
   ga4: {
     sessions7d: number;
@@ -105,12 +112,15 @@ export default function GrowthPage() {
         </div>
       </div>
 
-      {/* Row 1: IG + TikTok side by side + Format Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Row 1: Platform cards — IG + FB + TikTok */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <IGReelsCard data={socialStats?.instagram ?? null} loading={socialLoading} />
+        <FacebookCard data={socialStats?.facebook ?? null} loading={socialLoading} />
         <TikTokGrowthCard />
-        <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
       </div>
+
+      {/* Row 2: Format Performance (full width) */}
+      <FormatPerformanceChart data={perfWeights} loading={perfLoading} />
 
       {/* Row 2: Audience Geo + Reels Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

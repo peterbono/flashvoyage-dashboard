@@ -15,6 +15,7 @@ import { fetchContentFile } from "@/lib/github";
  */
 
 const IG_ID = "17841442283434789";
+const FB_PAGE_ID = "1068729919650308";
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
 interface SocialStats {
@@ -24,6 +25,12 @@ interface SocialStats {
     totalLikes: number;
     totalComments: number;
     followerCount: number | null;
+  };
+  facebook: {
+    pageLikes: number | null;
+    pageFollowers: number | null;
+    recentPosts: { id: string; message?: string; likes: number; comments: number; shares: number; date: string }[];
+    totalReach: number;
   };
   ga4: {
     sessions7d: number;
@@ -91,6 +98,52 @@ async function fetchIGStats(token: string): Promise<SocialStats["instagram"]> {
   }
 }
 
+async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
+  try {
+    // Page info (likes + followers)
+    const pageRes = await fetch(
+      `${GRAPH_API}/${FB_PAGE_ID}?fields=fan_count,followers_count&access_token=${token}`
+    );
+    const pageData = await pageRes.json();
+
+    const pageLikes = pageData.fan_count ?? null;
+    const pageFollowers = pageData.followers_count ?? null;
+
+    // Recent posts (last 10)
+    const feedRes = await fetch(
+      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
+    );
+    const feedData = await feedRes.json();
+
+    const recentPosts = (feedData.data || []).map((p: {
+      id: string;
+      message?: string;
+      created_time: string;
+      likes?: { summary?: { total_count?: number } };
+      comments?: { summary?: { total_count?: number } };
+      shares?: { count?: number };
+    }) => ({
+      id: p.id,
+      message: p.message?.slice(0, 80),
+      likes: p.likes?.summary?.total_count || 0,
+      comments: p.comments?.summary?.total_count || 0,
+      shares: p.shares?.count || 0,
+      date: p.created_time,
+    }));
+
+    const totalReach = recentPosts.reduce(
+      (s: number, p: { likes: number; comments: number; shares: number }) =>
+        s + p.likes + p.comments + p.shares,
+      0
+    );
+
+    return { pageLikes, pageFollowers, recentPosts, totalReach };
+  } catch (err) {
+    console.error("[social-stats] FB fetch error:", err);
+    return { pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0 };
+  }
+}
+
 export async function GET() {
   try {
     // Fetch tokens from content repo
@@ -102,8 +155,9 @@ export async function GET() {
     const fbToken = tokensData?.facebook?.token || process.env.FB_PAGE_TOKEN || "";
 
     // Parallel fetch all sources
-    const [igStats, audienceData, tiktokData] = await Promise.all([
+    const [igStats, fbStats, audienceData, tiktokData] = await Promise.all([
       fbToken ? fetchIGStats(fbToken) : Promise.resolve({ reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, followerCount: null }),
+      fbToken ? fetchFBStats(fbToken) : Promise.resolve({ pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0 }),
       fetchContentFile("social-distributor/data/audience-segments.json").catch(() => null) as Promise<{
         byCountry?: { country: string; sessions: number }[];
       } | null>,
@@ -136,6 +190,7 @@ export async function GET() {
 
     const stats: SocialStats = {
       instagram: igStats,
+      facebook: fbStats,
       ga4: { sessions7d: ga4Sessions, topCountries },
       tiktok: {
         followers: tkAccount?.followers || 0,
