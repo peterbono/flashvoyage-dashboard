@@ -34,6 +34,8 @@ const ALLOWED_PATHS = new Set([
   "health-report.json",
   "social-distributor/reels/data/trend-priorities.json",
   "social-distributor/reels/data/content-history.json",
+  "social-distributor/data/audience-segments.json",
+  "social-distributor/data/post-history.jsonl",
 ]);
 
 export async function GET(

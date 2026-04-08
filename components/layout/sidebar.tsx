@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import {
-  LayoutDashboard,
+  Sunrise,
+  TrendingUp,
   GitBranch,
   Film,
   DollarSign,
@@ -25,7 +26,8 @@ import {
 } from "@/components/ui/tooltip";
 
 const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/", label: "Morning Brief", icon: Sunrise },
+  { href: "/growth", label: "Growth", icon: TrendingUp },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/reels", label: "Reels", icon: Film },
   { href: "/costs", label: "Costs", icon: DollarSign },
