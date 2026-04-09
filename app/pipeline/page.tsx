@@ -148,14 +148,14 @@ const WORKFLOW_ORDER = [
 interface QuickAction {
   label: string;
   icon: React.ElementType;
-  workflow: string;
+  href: string;
   variant: "default" | "outline" | "secondary";
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: "Trigger Article", icon: FileText, workflow: "publish-article.yml", variant: "default" },
-  { label: "Trigger Reel", icon: Film, workflow: "publish-reels.yml", variant: "outline" },
-  { label: "Run Intelligence", icon: Brain, workflow: "content-intelligence.yml", variant: "outline" },
+  { label: "Trigger Article", icon: FileText, href: "/content", variant: "default" },
+  { label: "Trigger Reel", icon: Film, href: "/reels", variant: "outline" },
+  { label: "Run Intelligence", icon: Brain, href: "/content", variant: "outline" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -958,28 +958,22 @@ export default function PipelinePage() {
         <div className="flex flex-wrap gap-2">
           {QUICK_ACTIONS.map((action) => {
             const ActionIcon = action.icon;
-            const isDispatching = dispatching === action.workflow;
 
             return (
-              <Button
-                key={action.workflow}
-                variant={action.variant}
-                size="sm"
-                disabled={dispatching !== null}
-                onClick={() => handleDispatch(action.workflow)}
-                className={
-                  action.variant === "default"
-                    ? "bg-violet-600 hover:bg-violet-500 text-white border-violet-500/30"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                }
-              >
-                {isDispatching ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
+              <a key={action.label} href={action.href}>
+                <Button
+                  variant={action.variant}
+                  size="sm"
+                  className={
+                    action.variant === "default"
+                      ? "bg-violet-600 hover:bg-violet-500 text-white border-violet-500/30"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  }
+                >
                   <ActionIcon className="w-3.5 h-3.5" />
-                )}
-                {isDispatching ? "Triggering..." : action.label}
-              </Button>
+                  {action.label}
+                </Button>
+              </a>
             );
           })}
         </div>
