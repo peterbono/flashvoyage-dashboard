@@ -170,7 +170,7 @@ export default function MorningBrief() {
         </div>
         <div className="flex-1">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-            Morning Brief
+            Analytics
           </h1>
           <p className="text-[12px] text-gray-500 dark:text-zinc-500 capitalize">
             {today}
@@ -269,16 +269,7 @@ export default function MorningBrief() {
         <BestTimeRecommender variant="full" />
         <FormatPerformanceChart data={perfWeights} publications={publications} loading={perfLoading} />
       </div>
-      <AudienceGeoChart data={audienceForGeo} loading={socialLoading} />
 
-      {/* ── SYSTEM ──────────────────────────────────────────────── */}
-      <SystemHealthLight data={workflowData} loading={wfLoading} />
-      {/* Cost ticker hidden when $0 — full costs on /costs page */}
-      <AlertsFeed
-        tokensData={tokensData}
-        workflowData={workflowData}
-        loading={wfLoading || tokensLoading}
-      />
     </div>
   );
 }

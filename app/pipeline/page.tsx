@@ -26,6 +26,7 @@ import {
   Activity,
 } from "lucide-react";
 import type { WorkflowsPayload, WorkflowStatus } from "@/components/command-center/SystemHealthBanner";
+import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -467,6 +468,13 @@ export default function PipelinePage() {
     "/api/workflows",
     30_000
   );
+  const { data: tokensRaw, loading: tokensLoading } = usePolling<Record<string, unknown> | null>(
+    "/api/data/social-distributor/data/tokens.json",
+    300_000
+  );
+  const tokensData = tokensRaw
+    ? typeof tokensRaw === "object" ? tokensRaw : null
+    : null;
 
   const [dispatching, setDispatching] = useState<string | null>(null);
 
@@ -709,6 +717,15 @@ export default function PipelinePage() {
           })}
         </div>
       </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Alerts                                                           */}
+      {/* ---------------------------------------------------------------- */}
+      <AlertsFeed
+        tokensData={tokensData}
+        workflowData={workflowData}
+        loading={loading || tokensLoading}
+      />
 
       {/* ---------------------------------------------------------------- */}
       {/* Footer: last fetched timestamp                                   */}

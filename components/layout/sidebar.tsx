@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 
 const socialNav = [
-  { href: "/", label: "Dashboard", icon: Sunrise },
+  { href: "/", label: "Analytics", icon: Sunrise },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/reels", label: "Planner", icon: Film },
 ];

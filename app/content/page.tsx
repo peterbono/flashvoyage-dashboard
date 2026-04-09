@@ -22,6 +22,7 @@ import { SeasonalAlerts, type SeasonalItem } from "@/components/content/Seasonal
 import { ArticleScoreTable, type ArticleScore } from "@/components/content/ArticleScoreTable";
 import { LifecycleDonut } from "@/components/content/LifecycleDonut";
 import { CompetitorMoves, type CompetitorArticle } from "@/components/content/CompetitorMoves";
+import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
 
 // --- Data shapes from API responses ---
 interface ApiResponse<T> {
@@ -58,6 +59,18 @@ export default function ContentPage() {
     "/api/data/seasonal-forecast.json",
     POLL_INTERVAL
   );
+
+  // Audience geo (GA4 website data)
+  const audienceData = usePolling<ApiResponse<{ byCountry: { country: string; sessions: number }[] }>>(
+    "/api/data/social-distributor/data/audience-segments.json",
+    POLL_INTERVAL,
+    activeTab === "portfolio"
+  );
+  const audienceGeo = useMemo(() => {
+    const raw = audienceData.data?.data;
+    if (!raw?.byCountry) return null;
+    return { byCountry: raw.byCountry };
+  }, [audienceData.data]);
 
   // -----------------------------------------------------------------------
   // Tab 2: "Portfolio" data
@@ -299,14 +312,15 @@ export default function ContentPage() {
           value="portfolio"
           className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4"
         >
-          {/* Lifecycle donut + Competitor moves side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Lifecycle donut + Competitor moves + Audience Geo */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <LifecycleDonut data={lifecycleData} />
             <CompetitorMoves
               items={competitorItems}
               loading={competitorReport.loading}
               error={competitorReport.error}
             />
+            <AudienceGeoChart data={audienceGeo} loading={audienceData.loading} />
           </div>
 
           {/* Article score table (full width) */}
