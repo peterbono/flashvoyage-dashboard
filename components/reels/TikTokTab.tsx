@@ -88,16 +88,21 @@ function parseTikTokCSV(text: string): TikTokVideo[] {
   }).filter((v) => v.title !== "Untitled" || v.views > 0);
 }
 
+/** Normalize a string: lowercase + strip diacritics (é→e, à→a, etc.) */
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function guessFormat(title: string): string {
-  const t = title.toLowerCase();
-  if (t.includes("spot") || t.includes("pick")) return "pick";
-  if (t.includes("budget") || t.includes("astuce")) return "budget";
-  if (t.includes("expect") || t.includes("avant") || t.includes("reality")) return "avantapres";
-  if (t.includes("vs") || t.includes("versus")) return "versus";
-  if (t.includes("humor") || t.includes("quand")) return "humor";
-  if (t.includes("best time") || t.includes("quand partir")) return "best-time";
-  if (t.includes("leaderboard") || t.includes("top")) return "leaderboard";
-  if (t.includes("cost") || t.includes("cout")) return "cost-vs";
+  const t = norm(title);
+  if (t.includes("spot") || t.includes("pick") || t.includes("rater") || t.includes("incontournable")) return "pick";
+  if (t.includes("budget") || t.includes("cout") || t.includes("prix") || t.includes("cher") || t.includes("journalier") || t.includes("astuce")) return "budget";
+  if (t.includes("expect") || t.includes("reality") || t.includes("avant") || t.includes("apres") || t.includes("realite")) return "avantapres";
+  if (t.includes("vs") || t.includes("moins cher") || t.includes("compare") || t.includes("comparatif") || t.includes("lequel") || t.includes("versus")) return "cost-vs";
+  if (t.includes("top") || t.includes("classement") || t.includes("leaderboard") || t.includes("ranking")) return "leaderboard";
+  if (t.includes("humor") || t.includes("quand tu") || t.includes("meme") || t.includes("drole")) return "humor";
+  if (t.includes("quand") || t.includes("best time") || t.includes("saison") || t.includes("meilleur") || t.includes("partir")) return "best-time";
+  if (t.includes("mois") || t.includes("ou aller") || t.includes("ou partir") || t.includes("destination")) return "month";
   return "pick";
 }
 

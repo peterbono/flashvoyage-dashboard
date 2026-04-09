@@ -47,7 +47,7 @@ export function AudienceGeoChart({ data, loading }: Props) {
         <div className="flex items-center gap-2 mb-4">
           <Globe className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-semibold text-white">
-            Audience by Country (7d)
+            Website Visitors by Country (7d)
           </span>
           <Badge
             variant="outline"
@@ -105,6 +105,10 @@ export function AudienceGeoChart({ data, loading }: Props) {
             ))}
           </div>
         </div>
+
+        <p className="text-[10px] text-zinc-600 italic mt-3">
+          Social media audience demographics require additional API permissions. Currently showing website analytics only.
+        </p>
       </CardContent>
     </Card>
   );

@@ -40,16 +40,21 @@ interface Props {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Normalize a string: lowercase + strip diacritics (é→e, à→a, etc.) */
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function guessFormat(caption: string): string {
-  const c = caption.toLowerCase();
-  if (c.includes("spot") || c.includes("pick") || c.includes("rater")) return "pick";
-  if (c.includes("budget") || c.includes("cout") || c.includes("jour")) return "budget";
-  if (c.includes("expect") || c.includes("reality") || c.includes("avant")) return "avantapres";
-  if (c.includes("vs") || c.includes("moins cher") || c.includes("compare")) return "cost-vs";
-  if (c.includes("quand") || c.includes("best time") || c.includes("saison")) return "best-time";
-  if (c.includes("top") || c.includes("classement") || c.includes("leaderboard")) return "leaderboard";
-  if (c.includes("humor") || c.includes("quand tu") || c.includes("meme")) return "humor";
-  if (c.includes("partir") || c.includes("mois") || c.includes("ou aller")) return "month";
+  const c = norm(caption);
+  if (c.includes("spot") || c.includes("pick") || c.includes("rater") || c.includes("incontournable")) return "pick";
+  if (c.includes("budget") || c.includes("cout") || c.includes("prix") || c.includes("cher") || c.includes("journalier")) return "budget";
+  if (c.includes("expect") || c.includes("reality") || c.includes("avant") || c.includes("apres") || c.includes("realite")) return "avantapres";
+  if (c.includes("vs") || c.includes("moins cher") || c.includes("compare") || c.includes("comparatif") || c.includes("lequel")) return "cost-vs";
+  if (c.includes("top") || c.includes("classement") || c.includes("leaderboard") || c.includes("ranking")) return "leaderboard";
+  if (c.includes("humor") || c.includes("quand tu") || c.includes("meme") || c.includes("drole")) return "humor";
+  if (c.includes("quand") || c.includes("best time") || c.includes("saison") || c.includes("meilleur") || c.includes("partir")) return "best-time";
+  if (c.includes("mois") || c.includes("ou aller") || c.includes("ou partir") || c.includes("destination")) return "month";
   return "other";
 }
 
