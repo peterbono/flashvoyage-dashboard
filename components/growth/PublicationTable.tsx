@@ -218,17 +218,14 @@ export function PublicationTable({ publications, loading }: PublicationTableProp
                     >
                       {/* Platform icon + label */}
                       <TableCell>
-                        <div className="flex items-center gap-1.5" title={pub.platform}>
+                        <div title={pub.platform}>
                           {pub.platform === "instagram" ? (
-                            <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                            <Instagram className="w-4 h-4 text-pink-500" />
                           ) : pub.platform === "facebook" ? (
-                            <Facebook className="w-3.5 h-3.5 text-blue-500" />
+                            <Facebook className="w-4 h-4 text-blue-500" />
                           ) : (
-                            <Video className="w-3.5 h-3.5 text-cyan-400" />
+                            <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V8.75a8.18 8.18 0 004.76 1.52V6.84a4.83 4.83 0 01-1-.15z"/></svg>
                           )}
-                          <span className={`text-[10px] font-medium ${colors?.text ?? "text-zinc-500"}`}>
-                            {pub.platform === "instagram" ? "IG" : pub.platform === "facebook" ? "FB" : "TT"}
-                          </span>
                         </div>
                       </TableCell>
 

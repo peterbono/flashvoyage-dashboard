@@ -210,7 +210,7 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
 
     // Recent posts (last 10) with inline insights for post_impressions
     const feedRes = await fetch(
-      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
+      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,type,likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
     );
     const feedData = await feedRes.json();
 
@@ -218,12 +218,14 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
       id: string;
       message?: string;
       created_time: string;
+      type?: string;
       likes?: { summary?: { total_count?: number } };
       comments?: { summary?: { total_count?: number } };
       shares?: { count?: number };
     }) => ({
       id: p.id,
       message: p.message?.slice(0, 80),
+      type: p.type === "video" ? "video" : "post",
       likes: p.likes?.summary?.total_count || 0,
       comments: p.comments?.summary?.total_count || 0,
       shares: p.shares?.count || 0,
@@ -374,10 +376,10 @@ export async function GET(request: NextRequest) {
       interactions: r.likes + r.comments,
     }));
 
-    const fbPublications: Publication[] = fbStats.recentPosts.map((p) => ({
+    const fbPublications: Publication[] = fbStats.recentPosts.map((p: { id: string; message?: string; type?: string; date: string; impressions: number; likes: number; comments: number; shares: number }) => ({
       id: p.id,
       platform: "facebook" as const,
-      type: "post" as const,
+      type: (p.type === "video" ? "video" : "post") as "reel" | "post" | "video",
       caption: p.message || "",
       publishedAt: p.date,
       impressions: p.impressions, // real post impressions from insights API

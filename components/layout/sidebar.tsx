@@ -32,7 +32,7 @@ const socialNav = [
 
 const websiteNav = [
   { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/content", label: "Content", icon: FileText },
+  { href: "/content", label: "Articles", icon: FileText },
 ];
 
 const navItems = [...socialNav, ...websiteNav];
