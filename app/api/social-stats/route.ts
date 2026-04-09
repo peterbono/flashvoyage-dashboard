@@ -72,9 +72,9 @@ async function fetchReelInsights(
   token: string
 ): Promise<number> {
   try {
-    // ig_reels_aggregated_all_plays_count = total plays (autoplay + tap-to-play)
+    // Use "reach" metric — ig_reels_aggregated_all_plays_count is deprecated since v22.0
     const res = await fetch(
-      `${GRAPH_API}/${mediaId}/insights?metric=ig_reels_aggregated_all_plays_count&access_token=${token}`
+      `${GRAPH_API}/${mediaId}/insights?metric=reach&access_token=${token}`
     );
     const data = await res.json();
     if (data.error) {
@@ -158,7 +158,7 @@ async function fetchPostImpressions(
 ): Promise<number> {
   try {
     const res = await fetch(
-      `${GRAPH_API}/${postId}/insights?metric=post_impressions&period=lifetime&access_token=${token}`
+      `${GRAPH_API}/${postId}/insights/post_impressions_unique?access_token=${token}`
     );
     const data = await res.json();
     if (data.error) {
@@ -249,8 +249,11 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
       0
     );
 
-    // Also fetch page-level impressions (30-day aggregate)
-    const totalImpressions = await fetchFBPageImpressions(token, 30);
+    // Use sum of post-level impressions (page_impressions requires read_insights scope)
+    const totalImpressions = recentPosts.reduce(
+      (s: number, p: { impressions: number }) => s + p.impressions,
+      0
+    );
 
     return { pageLikes, pageFollowers, recentPosts, totalReach, totalImpressions };
   } catch (err) {
