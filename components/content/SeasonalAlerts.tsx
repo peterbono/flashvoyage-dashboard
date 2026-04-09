@@ -45,7 +45,7 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
     return (
       <div className="flex items-center justify-center py-6 text-zinc-500 text-xs gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Chargement saisonnier...
+        Loading seasonal data...
       </div>
     );
   }
@@ -53,7 +53,7 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
   if (error) {
     return (
       <div className="text-xs text-zinc-600 py-4 text-center">
-        Donnees saisonnieres indisponibles.
+        Seasonal data unavailable.
       </div>
     );
   }
@@ -68,7 +68,7 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
   if (urgent.length === 0) {
     return (
       <div className="text-xs text-zinc-600 py-4 text-center">
-        Aucune alerte saisonniere urgente.
+        No urgent seasonal alerts.
       </div>
     );
   }
@@ -78,7 +78,7 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
       <div className="px-4 py-2.5 border-b border-zinc-800/60">
         <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
           <CalendarClock className="w-3.5 h-3.5 text-amber-500" />
-          Alertes saisonnieres ({urgent.length})
+          Seasonal alerts ({urgent.length})
         </h3>
       </div>
       <div className="divide-y divide-zinc-800/40">
@@ -92,17 +92,17 @@ export function SeasonalAlerts({ items, loading, error }: Props) {
               <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${style.icon}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-zinc-200 truncate">
-                  {item.suggestedTopic || `Publier article sur ${item.destination}`}
+                  {item.suggestedTopic || `Publish article on ${item.destination}`}
                 </p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">
-                  {item.destination} — pic en {item.peakMonth || '?'}{item.publishBy ? ` (publier avant ${item.publishBy})` : ''}
+                  {item.destination} — peak in {item.peakMonth || '?'}{item.publishBy ? ` (publish before ${item.publishBy})` : ''}
                 </p>
               </div>
               <Badge
                 variant="outline"
                 className={`text-[10px] px-1.5 py-0 h-4 shrink-0 ${style?.badge || 'border-amber-800/60 text-amber-400'}`}
               >
-                {item.daysUntilPeak ?? item.daysUntilPublish ?? '?'}j
+                {item.daysUntilPeak ?? item.daysUntilPublish ?? '?'}d
               </Badge>
             </div>
           );

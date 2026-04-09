@@ -88,7 +88,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
     return (
       <div className="flex items-center justify-center py-8 text-zinc-500 text-xs gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Chargement de la queue ROI...
+        Loading ROI queue...
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
   if (error) {
     return (
       <div className="text-xs text-zinc-600 py-6 text-center">
-        Donnees ROI indisponibles. Les fichiers intelligence ne sont pas encore generes.
+        ROI data unavailable. Intelligence files have not been generated yet.
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-xs text-zinc-600 py-6 text-center">
-        La queue ROI est vide. Ajoutez un article ci-dessus ou attendez le prochain cycle intelligence.
+        ROI queue is empty. Add an article above or wait for the next intelligence cycle.
       </div>
     );
   }
@@ -113,7 +113,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
     <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-zinc-800/60">
         <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
-          Queue par ROI ({items.length})
+          ROI queue ({items.length})
         </h3>
         <Button
           variant="ghost"
@@ -122,15 +122,15 @@ export function ROIQueueTable({ items, loading, error }: Props) {
           className="text-zinc-500 hover:text-white text-xs gap-1"
         >
           <ArrowUpDown className="w-3 h-3" />
-          {sortBy === "roi" ? "Par ROI" : "Par priorite"}
+          {sortBy === "roi" ? "By ROI" : "By priority"}
         </Button>
       </div>
       <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800/60 hover:bg-transparent">
-            <TableHead className="text-zinc-500 text-xs font-medium w-20">Priorite</TableHead>
-            <TableHead className="text-zinc-500 text-xs font-medium">Titre / Sujet</TableHead>
+            <TableHead className="text-zinc-500 text-xs font-medium w-20">Priority</TableHead>
+            <TableHead className="text-zinc-500 text-xs font-medium">Title / Topic</TableHead>
             <TableHead className="text-zinc-500 text-xs font-medium w-20">Type</TableHead>
             <TableHead className="text-zinc-500 text-xs font-medium w-24 text-right">ROI</TableHead>
             <TableHead className="text-zinc-500 text-xs font-medium w-28 text-right">Action</TableHead>
@@ -184,7 +184,7 @@ export function ROIQueueTable({ items, loading, error }: Props) {
                   ) : (
                     <Rocket className="w-3 h-3" />
                   )}
-                  Produire
+                  Produce
                 </Button>
               </TableCell>
             </TableRow>

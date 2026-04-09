@@ -455,9 +455,18 @@ export default function CostsPage() {
           <div>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
             <p className="text-xs md:text-sm text-zinc-500 mt-0.5">
-              Real pipeline spend from {filteredEntries.length} production runs
-              {filteredEntries.length !== entries.length && (
-                <span className="text-zinc-600"> (of {entries.length} total)</span>
+              {filteredEntries.length === 0 && entries.length > 0 ? (
+                <>
+                  No costs in this period. Last entry:{" "}
+                  {[...entries].sort((a, b) => b.date.localeCompare(a.date))[0]?.date.slice(0, 10)}
+                </>
+              ) : (
+                <>
+                  Real pipeline spend from {filteredEntries.length} production runs
+                  {filteredEntries.length !== entries.length && (
+                    <span className="text-zinc-600"> (of {entries.length} total)</span>
+                  )}
+                </>
               )}
             </p>
           </div>
@@ -779,7 +788,17 @@ export default function CostsPage() {
                 {pagedEntries.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-zinc-600 py-8">
-                      No pipeline runs recorded
+                      {filteredEntries.length === 0 && entries.length > 0 ? (
+                        <div className="space-y-1">
+                          <p>No costs in this period.</p>
+                          <p className="text-zinc-500 text-xs">
+                            Last entry:{" "}
+                            {[...entries].sort((a, b) => b.date.localeCompare(a.date))[0]?.date.slice(0, 10)}
+                          </p>
+                        </div>
+                      ) : (
+                        "No pipeline runs recorded"
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (

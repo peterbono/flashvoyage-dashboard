@@ -29,7 +29,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
     return (
       <div className="flex items-center justify-center py-6 text-zinc-500 text-xs gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Chargement des mouvements concurrents...
+        Loading competitor moves...
       </div>
     );
   }
@@ -37,7 +37,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
   if (error) {
     return (
       <div className="text-xs text-zinc-600 py-6 text-center">
-        Donnees concurrentielles indisponibles.
+        Competitor data unavailable.
       </div>
     );
   }
@@ -45,7 +45,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-xs text-zinc-600 py-4 text-center">
-        Aucun mouvement concurrent recent detecte.
+        No recent competitor moves detected.
       </div>
     );
   }
@@ -55,7 +55,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
       <div className="px-4 py-2.5 border-b border-zinc-800/60">
         <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
           <Eye className="w-3.5 h-3.5 text-violet-400" />
-          Mouvements concurrents ({items.length})
+          Competitor moves ({items.length})
         </h3>
       </div>
       <div className="divide-y divide-zinc-800/40">
@@ -81,7 +81,7 @@ export function CompetitorMoves({ items, loading, error }: Props) {
                 )}
               </div>
               <p className="text-[10px] text-zinc-500 mt-0.5">
-                {item.competitor} - {new Date(item.publishedAt).toLocaleDateString("fr-FR")}
+                {item.competitor} - {new Date(item.publishedAt).toLocaleDateString("en-US")}
                 {item.estimatedTraffic != null && (
                   <span className="ml-2 text-zinc-600">
                     ~{item.estimatedTraffic >= 1000

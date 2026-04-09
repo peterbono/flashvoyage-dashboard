@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Instagram, Heart, MessageCircle, Users } from "lucide-react";
+import { Instagram, Heart, MessageCircle, Users, Eye } from "lucide-react";
 
 interface IGReel {
   id: string;
@@ -18,6 +18,7 @@ interface Props {
     recentReels: IGReel[];
     totalLikes: number;
     totalComments: number;
+    totalImpressions: number;
     followerCount: number | null;
   } | null;
   loading: boolean;
@@ -71,6 +72,16 @@ export function IGReelsCard({ data, loading }: Props) {
               <span className="text-xs text-zinc-400">Reels Published</span>
             </div>
             <span className="text-sm font-bold text-white">{data.reelsPublished}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="text-xs text-zinc-400">Total Impressions</span>
+            </div>
+            <span className="text-sm font-bold text-emerald-400">
+              {data.totalImpressions.toLocaleString("en-US")}
+            </span>
           </div>
 
           <div className="flex items-center justify-between">

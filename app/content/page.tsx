@@ -23,7 +23,6 @@ import { ArticleScoreTable, type ArticleScore } from "@/components/content/Artic
 import { LifecycleDonut } from "@/components/content/LifecycleDonut";
 import { CompetitorMoves, type CompetitorArticle } from "@/components/content/CompetitorMoves";
 
-
 // --- Data shapes from API responses ---
 interface ApiResponse<T> {
   data: T;
@@ -45,7 +44,7 @@ export default function ContentPage() {
   });
 
   // -----------------------------------------------------------------------
-  // Tab 1: "Quoi ecrire" data
+  // Tab 1: "What to Write" data
   // -----------------------------------------------------------------------
   const roiQueue = usePolling<ApiResponse<ROIQueueItem[]>>(
     `/api/data/roi-optimized-queue.json?r=${queueRefreshKey}`,
@@ -71,14 +70,13 @@ export default function ContentPage() {
   const lifecycleStates = usePolling<ApiResponse<Record<string, number>>>(
     "/api/data/lifecycle-states.json",
     POLL_INTERVAL,
-    activeTab === "portfolio"
+    activeTab === "portfolio" || activeTab === "quoi-ecrire"
   );
   const competitorReport = usePolling<ApiResponse<CompetitorArticle[]>>(
     "/api/data/competitor-report.json",
     POLL_INTERVAL,
     activeTab === "portfolio"
   );
-
 
   // -----------------------------------------------------------------------
   // Helpers
@@ -87,41 +85,6 @@ export default function ContentPage() {
     setQueueRefreshKey((k) => k + 1);
     roiQueue.refetch();
   }, [roiQueue]);
-
-  const handleApproveAll = useCallback(async () => {
-    try {
-      await fetch("/api/workflows/dispatch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workflow: "content-refresh.yml",
-          inputs: { mode: "apply" },
-        }),
-      });
-      executorLog.refetch();
-    } catch {
-      // non-blocking
-    }
-  }, [executorLog]);
-
-  const handleApproveSingle = useCallback(
-    async (id: string) => {
-      try {
-        await fetch("/api/workflows/dispatch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            workflow: "content-refresh.yml",
-            inputs: { mode: "apply", entryId: id },
-          }),
-        });
-        executorLog.refetch();
-      } catch {
-        // non-blocking
-      }
-    },
-    [executorLog]
-  );
 
   // ── Extract arrays from wrapped API responses ──
   // API returns {data: {timestamp, queue: [...]}} — we need the inner array
@@ -167,22 +130,40 @@ export default function ContentPage() {
     })) as SeasonalItem[];
   }, [seasonalForecast.data]);
 
+  // Build a slug->state lookup from lifecycle-states data
+  const lifecycleBySlug = useMemo(() => {
+    const map: Record<string, string> = {};
+    const raw = lifecycleStates.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const obj = raw as Record<string, unknown>;
+      const articles = obj.articles;
+      if (Array.isArray(articles)) {
+        for (const a of articles as Record<string, unknown>[]) {
+          if (a.slug && a.state) map[String(a.slug)] = String(a.state);
+        }
+      }
+    }
+    return map;
+  }, [lifecycleStates.data]);
+
   const scoreItems = useMemo(() => {
     const raw = unwrap<Record<string, unknown>>(articleScores.data?.data, 'scores', 'articles', 'items');
-    return raw.map(r => ({
-      id: String(r.wpId ?? r.id ?? ''),
-      title: String(r.title ?? ''),
-      slug: String(r.slug ?? ''),
-      score: (r.compositeScore as number) ?? (r.score as number) ?? 0,
-      lifecycle: String(r.lifecycle ?? 'NEW'),
-      traffic7d: (r.signals as Record<string, unknown>)?.traffic as number ?? r.traffic7d as number ?? 0,
-      actions: (r.actions as string[]) ?? [],
-      breakdown: r.signals as Record<string, number> ?? {},
-    })) as unknown as ArticleScore[];
-  }, [articleScores.data]);
+    return raw.map(r => {
+      const slug = String(r.slug ?? '');
+      return {
+        id: String(r.wpId ?? r.id ?? ''),
+        title: String(r.title ?? ''),
+        slug,
+        score: (r.compositeScore as number) ?? (r.score as number) ?? 0,
+        lifecycle: String(r.lifecycle ?? lifecycleBySlug[slug] ?? 'NEW'),
+        traffic7d: (r.signals as Record<string, unknown>)?.traffic as number ?? r.traffic7d as number ?? 0,
+        actions: (r.actions as string[]) ?? [],
+        breakdown: r.signals as Record<string, number> ?? {},
+      };
+    }) as unknown as ArticleScore[];
+  }, [articleScores.data, lifecycleBySlug]);
 
   const competitorItems = useMemo(() => unwrap<CompetitorArticle>(competitorReport.data?.data, 'newArticles', 'articles', 'items'), [competitorReport.data]);
-  const executorItems = useMemo(() => unwrap<ExecutorLogEntry>(executorLog.data?.data, 'entries', 'log', 'items'), [executorLog.data]);
 
   // Compute lifecycle distribution from article scores as fallback
   const lifecycleData = useMemo(() => {
@@ -230,7 +211,7 @@ export default function ContentPage() {
               variant="outline"
               className="border-zinc-800 text-zinc-600 text-xs"
             >
-              En attente des donnees intelligence
+              Waiting for intelligence data
             </Badge>
           )}
         </div>
@@ -351,26 +332,6 @@ export default function ContentPage() {
           </div>
         </TabsContent>
 
-        {/* ================================================================ */}
-        {/* TAB 3: Auto-Executor                                              */}
-        {/* ================================================================ */}
-        <TabsContent
-          value="auto-executor"
-          className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4"
-        >
-          <AutoExecutorLog
-            entries={executorItems}
-            loading={executorLog.loading}
-            error={executorLog.error}
-            onApproveAll={handleApproveAll}
-            onApprove={handleApproveSingle}
-            onReject={(id) => {
-              // Rejection is a local removal; in production this would
-              // call an API to mark the entry as rejected.
-              console.log("Rejected:", id);
-            }}
-          />
-        </TabsContent>
       </Tabs>
     </div>
   );

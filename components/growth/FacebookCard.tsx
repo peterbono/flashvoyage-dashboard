@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Facebook, Users, Heart, Share2, MessageCircle } from "lucide-react";
+import { Facebook, Users, Heart, Share2, MessageCircle, Eye } from "lucide-react";
 
 interface FBPost {
   id: string;
@@ -19,6 +19,7 @@ interface Props {
     pageFollowers: number | null;
     recentPosts: FBPost[];
     totalReach: number;
+    totalImpressions: number;
   } | null;
   loading: boolean;
 }
@@ -75,10 +76,22 @@ export function FacebookCard({ data, loading }: Props) {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Share2 className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-400">Engagement (10 posts)</span>
+              <Eye className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="text-xs text-zinc-400">Impressions (30d)</span>
             </div>
-            <span className="text-sm font-bold text-emerald-400">{data.totalReach}</span>
+            <span className="text-sm font-bold text-emerald-400">
+              {data.totalImpressions.toLocaleString("en-US")}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="text-xs text-zinc-400">Post Reach (10 posts)</span>
+            </div>
+            <span className="text-sm font-bold text-white">
+              {data.totalReach.toLocaleString("en-US")}
+            </span>
           </div>
 
           {/* Recent posts */}

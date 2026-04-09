@@ -43,7 +43,7 @@ export function ContentGapsList({ items, loading, error }: Props) {
     return (
       <div className="flex items-center justify-center py-6 text-zinc-500 text-xs gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Chargement des gaps...
+        Loading content gaps...
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function ContentGapsList({ items, loading, error }: Props) {
   if (error) {
     return (
       <div className="text-xs text-zinc-600 py-6 text-center">
-        Donnees content gaps indisponibles.
+        Content gaps data unavailable.
       </div>
     );
   }
@@ -59,7 +59,7 @@ export function ContentGapsList({ items, loading, error }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-xs text-zinc-600 py-4 text-center">
-        Aucun gap de contenu detecte.
+        No content gaps detected.
       </div>
     );
   }
@@ -75,9 +75,9 @@ export function ContentGapsList({ items, loading, error }: Props) {
       <Table>
         <TableHeader>
           <TableRow className="border-zinc-800/60 hover:bg-transparent">
-            <TableHead className="text-zinc-500 text-xs font-medium">Sujet</TableHead>
+            <TableHead className="text-zinc-500 text-xs font-medium">Topic</TableHead>
             <TableHead className="text-zinc-500 text-xs font-medium w-28 text-right">Volume</TableHead>
-            <TableHead className="text-zinc-500 text-xs font-medium w-20 text-center">Tendance</TableHead>
+            <TableHead className="text-zinc-500 text-xs font-medium w-20 text-center">Trend</TableHead>
             <TableHead className="text-zinc-500 text-xs font-medium w-24">Source</TableHead>
           </TableRow>
         </TableHeader>

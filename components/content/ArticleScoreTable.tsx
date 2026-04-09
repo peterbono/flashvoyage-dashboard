@@ -24,6 +24,7 @@ import {
 export interface ArticleScore {
   id: string | number;
   title: string;
+  slug?: string;
   url?: string;
   score: number;
   lifecycle: "NEW" | "GROWING" | "PEAK" | "DECLINING" | "EVERGREEN" | "DEAD";
@@ -88,7 +89,7 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
           {bd && (
             <div>
               <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                Decomposition du score
+                Score breakdown
               </p>
               <div className="space-y-1.5">
                 {Object.entries(bd).map(([key, val]) => (
@@ -107,7 +108,7 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
           {article.recommendedActions && article.recommendedActions.length > 0 && (
             <div>
               <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                Actions recommandees
+                Recommended actions
               </p>
               <ul className="space-y-1">
                 {article.recommendedActions.map((action, i) => (
@@ -141,7 +142,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
       list = list.filter((a) => a.title.toLowerCase().includes(q));
     }
     if (lifecycleFilter !== "all") {
-      list = list.filter((a) => a.lifecycle === lifecycleFilter);
+      list = list.filter((a) => a.lifecycle.toUpperCase() === lifecycleFilter.toUpperCase());
     }
     return [...list].sort((a, b) =>
       sortBy === "score" ? b.score - a.score : b.traffic7d - a.traffic7d
@@ -152,7 +153,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
     return (
       <div className="flex items-center justify-center py-12 text-zinc-500 text-xs gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Chargement des scores articles...
+        Loading article scores...
       </div>
     );
   }
@@ -160,7 +161,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
   if (error) {
     return (
       <div className="text-xs text-zinc-600 py-8 text-center">
-        Donnees de scoring indisponibles. Le fichier article-scores.json n&apos;est pas encore genere.
+        Scoring data unavailable. The article-scores.json file has not been generated yet.
       </div>
     );
   }
@@ -176,7 +177,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filtrer les articles..."
+            placeholder="Filter articles..."
             className="bg-zinc-900 border-zinc-700 text-white text-xs h-7 pl-8 w-full sm:w-52 placeholder:text-zinc-600"
           />
         </div>
@@ -194,7 +195,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
                   : "text-zinc-500 hover:text-white hover:bg-zinc-800"
               }`}
             >
-              {lc === "all" ? "Tous" : lc}
+              {lc === "all" ? "All" : lc}
             </Button>
           ))}
         </div>
@@ -206,7 +207,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
           className="text-zinc-500 hover:text-white text-xs gap-1 sm:ml-auto"
         >
           <ArrowUpDown className="w-3 h-3" />
-          {sortBy === "score" ? "Par score" : "Par trafic"}
+          {sortBy === "score" ? "By score" : "By traffic"}
         </Button>
       </div>
 
@@ -217,17 +218,17 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
           <TableHeader>
             <TableRow className="border-zinc-800/60 hover:bg-transparent">
               <TableHead className="text-zinc-500 text-xs font-medium w-8" />
-              <TableHead className="text-zinc-500 text-xs font-medium">Titre</TableHead>
+              <TableHead className="text-zinc-500 text-xs font-medium">Title</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-16 text-right">Score</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-24">Lifecycle</TableHead>
-              <TableHead className="text-zinc-500 text-xs font-medium w-20 text-right">Trafic 7j</TableHead>
+              <TableHead className="text-zinc-500 text-xs font-medium w-20 text-right">Traffic 7d</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow className="border-zinc-800/40">
                 <TableCell colSpan={5} className="text-xs text-zinc-600 text-center py-6">
-                  Aucun article ne correspond aux filtres.
+                  No articles match the filters.
                 </TableCell>
               </TableRow>
             ) : (
@@ -256,15 +257,27 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-zinc-200 max-w-md">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate">{article.title}</span>
-                          {article.url && (
+                        <div className="flex items-center gap-1.5 group/title">
+                          {article.slug ? (
                             <a
-                              href={article.url}
+                              href={`https://flashvoyage.com/${article.slug}/`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="shrink-0"
+                              className="truncate hover:underline"
+                            >
+                              {article.title}
+                            </a>
+                          ) : (
+                            <span className="truncate">{article.title}</span>
+                          )}
+                          {(article.slug || article.url) && (
+                            <a
+                              href={article.url || `https://flashvoyage.com/${article.slug}/`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="shrink-0 opacity-0 group-hover/title:opacity-100 transition-opacity"
                             >
                               <ExternalLink className="w-3 h-3 text-zinc-600 hover:text-amber-400 transition-colors" />
                             </a>

@@ -41,7 +41,7 @@ export function LifecycleDonut({ data }: Props) {
   if (total === 0) {
     return (
       <div className="text-xs text-zinc-600 text-center py-4">
-        Aucune donnee de lifecycle.
+        No lifecycle data available.
       </div>
     );
   }

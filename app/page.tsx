@@ -26,12 +26,14 @@ interface SocialStats {
     reelsPublished: number;
     totalLikes: number;
     totalComments: number;
+    totalImpressions: number;
     followerCount: number | null;
   };
   facebook: {
     pageLikes: number | null;
     pageFollowers: number | null;
     totalReach: number;
+    totalImpressions: number;
   };
   ga4: { sessions7d: number; topCountries?: { country: string; sessions: number }[] };
   tiktok: { followers: number; totalViews: number; totalLikes: number };
@@ -123,8 +125,8 @@ export default function MorningBrief() {
 
   const impressions = useMemo(() => {
     if (!socialStats) return { total: 0, ig: 0, fb: 0, tk: 0 };
-    const ig = socialStats.instagram?.totalLikes ?? 0;
-    const fb = socialStats.facebook?.totalReach ?? 0;
+    const ig = socialStats.instagram?.totalImpressions ?? 0;
+    const fb = socialStats.facebook?.totalImpressions ?? 0;
     const tk = socialStats.tiktok?.totalViews ?? 0;
     return { ig, fb, tk, total: ig + fb + tk };
   }, [socialStats]);
@@ -132,7 +134,9 @@ export default function MorningBrief() {
   const interactions = useMemo(() => {
     if (!socialStats) return { total: 0, ig: 0, fb: 0, tk: 0 };
     const ig = (socialStats.instagram?.totalLikes ?? 0) + (socialStats.instagram?.totalComments ?? 0);
-    const fb = socialStats.facebook?.totalReach ?? 0;
+    // FB interactions = sum of likes+comments+shares from publications (totalReach now holds post-level impressions sum)
+    const fbPubs = (socialStats.publications ?? []).filter((p) => p.platform === "facebook");
+    const fb = fbPubs.reduce((s, p) => s + p.interactions, 0);
     const tk = socialStats.tiktok?.totalLikes ?? 0;
     return { ig, fb, tk, total: ig + fb + tk };
   }, [socialStats]);

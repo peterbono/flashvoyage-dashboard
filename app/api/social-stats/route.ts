@@ -31,16 +31,18 @@ interface Publication {
 interface SocialStats {
   instagram: {
     reelsPublished: number;
-    recentReels: { id: string; likes: number; comments: number; plays?: number; date: string; caption?: string }[];
+    recentReels: { id: string; likes: number; comments: number; plays: number; date: string; caption?: string }[];
     totalLikes: number;
     totalComments: number;
+    totalImpressions: number;
     followerCount: number | null;
   };
   facebook: {
     pageLikes: number | null;
     pageFollowers: number | null;
-    recentPosts: { id: string; message?: string; likes: number; comments: number; shares: number; date: string }[];
+    recentPosts: { id: string; message?: string; likes: number; comments: number; shares: number; impressions: number; date: string }[];
     totalReach: number;
+    totalImpressions: number;
   };
   ga4: {
     sessions7d: number;
@@ -65,6 +67,29 @@ interface SocialStats {
   fetchedAt: string;
 }
 
+async function fetchReelInsights(
+  mediaId: string,
+  token: string
+): Promise<number> {
+  try {
+    // ig_reels_aggregated_all_plays_count = total plays (autoplay + tap-to-play)
+    const res = await fetch(
+      `${GRAPH_API}/${mediaId}/insights?metric=ig_reels_aggregated_all_plays_count&access_token=${token}`
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.warn(`[social-stats] IG reel insights error for ${mediaId}:`, data.error.message);
+      return 0;
+    }
+    // data.data is an array of metric objects; we want the first one's value
+    const metric = data.data?.[0];
+    return metric?.values?.[0]?.value ?? 0;
+  } catch (err) {
+    console.warn(`[social-stats] IG reel insights fetch failed for ${mediaId}:`, err);
+    return 0;
+  }
+}
+
 async function fetchIGStats(token: string): Promise<SocialStats["instagram"]> {
   try {
     // Fetch recent media (last 20)
@@ -75,21 +100,33 @@ async function fetchIGStats(token: string): Promise<SocialStats["instagram"]> {
 
     if (mediaData.error) {
       console.warn("[social-stats] IG media error:", mediaData.error.message);
-      return { reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, followerCount: null };
+      return { reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, totalImpressions: 0, followerCount: null };
     }
 
-    const reels = (mediaData.data || [])
-      .filter((m: { media_type: string }) => m.media_type === "VIDEO")
-      .map((m: { id: string; like_count?: number; comments_count?: number; timestamp: string; caption?: string }) => ({
+    const videoMedia = (mediaData.data || []).filter(
+      (m: { media_type: string }) => m.media_type === "VIDEO"
+    );
+
+    // Fetch real play counts for each reel in parallel
+    const reelInsightsPromises = videoMedia.map(
+      (m: { id: string }) => fetchReelInsights(m.id, token)
+    );
+    const playCounts: number[] = await Promise.all(reelInsightsPromises);
+
+    const reels = videoMedia.map(
+      (m: { id: string; like_count?: number; comments_count?: number; timestamp: string; caption?: string }, i: number) => ({
         id: m.id,
         likes: m.like_count || 0,
         comments: m.comments_count || 0,
+        plays: playCounts[i],
         date: m.timestamp,
         caption: m.caption?.slice(0, 100),
-      }));
+      })
+    );
 
     const totalLikes = reels.reduce((s: number, r: { likes: number }) => s + r.likes, 0);
     const totalComments = reels.reduce((s: number, r: { comments: number }) => s + r.comments, 0);
+    const totalImpressions = reels.reduce((s: number, r: { plays: number }) => s + r.plays, 0);
 
     // Try to get follower count
     let followerCount: number | null = null;
@@ -106,11 +143,57 @@ async function fetchIGStats(token: string): Promise<SocialStats["instagram"]> {
       recentReels: reels,
       totalLikes,
       totalComments,
+      totalImpressions,
       followerCount,
     };
   } catch (err) {
     console.error("[social-stats] IG fetch error:", err);
-    return { reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, followerCount: null };
+    return { reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, totalImpressions: 0, followerCount: null };
+  }
+}
+
+async function fetchPostImpressions(
+  postId: string,
+  token: string
+): Promise<number> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API}/${postId}/insights?metric=post_impressions&period=lifetime&access_token=${token}`
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.warn(`[social-stats] FB post insights error for ${postId}:`, data.error.message);
+      return 0;
+    }
+    const metric = data.data?.[0];
+    return metric?.values?.[0]?.value ?? 0;
+  } catch (err) {
+    console.warn(`[social-stats] FB post insights fetch failed for ${postId}:`, err);
+    return 0;
+  }
+}
+
+async function fetchFBPageImpressions(
+  token: string,
+  sinceDays: number = 30
+): Promise<number> {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const since = now - sinceDays * 86400;
+    const res = await fetch(
+      `${GRAPH_API}/${FB_PAGE_ID}/insights?metric=page_impressions&period=day&since=${since}&until=${now}&access_token=${token}`
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.warn("[social-stats] FB page impressions error:", data.error.message);
+      return 0;
+    }
+    // Sum all daily values over the period
+    const values = data.data?.[0]?.values || [];
+    return values.reduce((sum: number, v: { value?: number }) => sum + (v.value || 0), 0);
+  } catch (err) {
+    console.warn("[social-stats] FB page impressions fetch failed:", err);
+    return 0;
   }
 }
 
@@ -125,13 +208,13 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
     const pageLikes = pageData.fan_count ?? null;
     const pageFollowers = pageData.followers_count ?? null;
 
-    // Recent posts (last 10)
+    // Recent posts (last 10) with inline insights for post_impressions
     const feedRes = await fetch(
       `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
     );
     const feedData = await feedRes.json();
 
-    const recentPosts = (feedData.data || []).map((p: {
+    const rawPosts = (feedData.data || []).map((p: {
       id: string;
       message?: string;
       created_time: string;
@@ -147,16 +230,32 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
       date: p.created_time,
     }));
 
+    // Fetch real impressions per post in parallel
+    const impressionPromises = rawPosts.map(
+      (p: { id: string }) => fetchPostImpressions(p.id, token)
+    );
+    const postImpressions: number[] = await Promise.all(impressionPromises);
+
+    const recentPosts = rawPosts.map(
+      (p: { id: string; message?: string; likes: number; comments: number; shares: number; date: string }, i: number) => ({
+        ...p,
+        impressions: postImpressions[i],
+      })
+    );
+
+    // totalReach = sum of all post-level impressions
     const totalReach = recentPosts.reduce(
-      (s: number, p: { likes: number; comments: number; shares: number }) =>
-        s + p.likes + p.comments + p.shares,
+      (s: number, p: { impressions: number }) => s + p.impressions,
       0
     );
 
-    return { pageLikes, pageFollowers, recentPosts, totalReach };
+    // Also fetch page-level impressions (30-day aggregate)
+    const totalImpressions = await fetchFBPageImpressions(token, 30);
+
+    return { pageLikes, pageFollowers, recentPosts, totalReach, totalImpressions };
   } catch (err) {
     console.error("[social-stats] FB fetch error:", err);
-    return { pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0 };
+    return { pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0, totalImpressions: 0 };
   }
 }
 
@@ -229,8 +328,8 @@ export async function GET(request: NextRequest) {
 
     // Parallel fetch all sources
     const [igStats, fbStats, audienceData, tiktokData] = await Promise.all([
-      fbToken ? fetchIGStats(fbToken) : Promise.resolve({ reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, followerCount: null }),
-      fbToken ? fetchFBStats(fbToken) : Promise.resolve({ pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0 }),
+      fbToken ? fetchIGStats(fbToken) : Promise.resolve({ reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, totalImpressions: 0, followerCount: null }),
+      fbToken ? fetchFBStats(fbToken) : Promise.resolve({ pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0, totalImpressions: 0 }),
       fetchContentFile("social-distributor/data/audience-segments.json").catch(() => null) as Promise<{
         byCountry?: { country: string; sessions: number }[];
       } | null>,
@@ -268,7 +367,7 @@ export async function GET(request: NextRequest) {
       type: "reel" as const,
       caption: r.caption || "",
       publishedAt: r.date,
-      impressions: r.likes + r.comments,
+      impressions: r.plays, // real view count from insights API
       interactions: r.likes + r.comments,
     }));
 
@@ -278,7 +377,7 @@ export async function GET(request: NextRequest) {
       type: "post" as const,
       caption: p.message || "",
       publishedAt: p.date,
-      impressions: p.likes + p.comments + p.shares,
+      impressions: p.impressions, // real post impressions from insights API
       interactions: p.likes + p.comments + p.shares,
     }));
 

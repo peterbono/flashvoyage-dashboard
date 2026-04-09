@@ -84,12 +84,12 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
   return (
     <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
       <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-        Injecter un article
+        Inject an article
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
         {/* Title */}
         <div className="sm:col-span-2 lg:col-span-2 space-y-1">
-          <Label className="text-xs text-zinc-500">Titre / Sujet</Label>
+          <Label className="text-xs text-zinc-500">Title / Topic</Label>
           <Input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -100,7 +100,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
 
         {/* Keyword */}
         <div className="space-y-1">
-          <Label className="text-xs text-zinc-500">Mot-cle</Label>
+          <Label className="text-xs text-zinc-500">Keyword</Label>
           <Input
             value={form.keyword}
             onChange={(e) => setForm((f) => ({ ...f, keyword: e.target.value }))}
@@ -117,7 +117,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
             onValueChange={(v) => setForm((f) => ({ ...f, destination: v ?? "" }))}
           >
             <SelectTrigger className="bg-zinc-950 border-zinc-700 text-white text-xs h-8 w-full">
-              <SelectValue placeholder="Choisir..." />
+              <SelectValue placeholder="Select..." />
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-zinc-700">
               {DESTINATIONS.map((d) => (
@@ -131,7 +131,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
 
         {/* Priority */}
         <div className="space-y-1">
-          <Label className="text-xs text-zinc-500">Priorite</Label>
+          <Label className="text-xs text-zinc-500">Priority</Label>
           <Select
             value={form.priority}
             onValueChange={(v) =>
@@ -172,7 +172,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
             ) : (
               <Plus className="w-3.5 h-3.5" />
             )}
-            Ajouter
+            Add
           </Button>
         </div>
       </div>
@@ -182,7 +182,7 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
         <Input
           value={form.notes}
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          placeholder="Notes (optionnel)..."
+          placeholder="Notes (optional)..."
           className="bg-zinc-950 border-zinc-700 text-white text-xs h-7 placeholder:text-zinc-600"
         />
       </div>
@@ -190,11 +190,11 @@ export function ArticleInjectorForm({ onSubmitted }: Props) {
       {/* Feedback */}
       {success && (
         <p className="text-xs text-emerald-400 mt-2">
-          Article ajoute a la queue avec succes.
+          Article added to the queue successfully.
         </p>
       )}
       {error && (
-        <p className="text-xs text-rose-400 mt-2">Erreur: {error}</p>
+        <p className="text-xs text-rose-400 mt-2">Error: {error}</p>
       )}
     </div>
   );
