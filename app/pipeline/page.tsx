@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePolling } from "@/lib/usePolling";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import {
   GitBranch,
   ExternalLink,
@@ -20,6 +28,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  Circle,
   AlertCircle,
   Timer,
   Zap,
@@ -116,7 +125,7 @@ const WORKFLOW_META: Record<string, WorkflowMeta> = {
   "publish-article": {
     icon: FileText,
     shortLabel: "Publish Article",
-    schedule: "Mon+Wed",
+    schedule: "03:00, 08:00 UTC daily",
     brief: "Takes the next article from the publishing queue, generates full content via AI (Haiku + GPT-4o-mini), publishes to WordPress with SEO optimization.",
     dispatchFile: "publish-article.yml",
   },
@@ -336,9 +345,11 @@ function TrafficLightCard({
 function WorkflowCard({
   wf,
   meta,
+  onClick,
 }: {
   wf: WorkflowStatus;
   meta: WorkflowMeta;
+  onClick?: () => void;
 }) {
   const { status, label } = resolveWorkflowStatus(wf);
   const Icon = meta.icon;
@@ -352,7 +363,12 @@ function WorkflowCard({
     run && run.conclusion ? durationStr(run.created_at, run.updated_at) : "--";
 
   return (
-    <Card className="bg-zinc-900 border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-200 group">
+    <Card
+      className={`bg-zinc-900 border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-200 group ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+      onClick={onClick}
+    >
       <CardContent className="py-4 space-y-3">
         {/* Header: icon + name + status badge */}
         <div className="flex items-start justify-between gap-2">
@@ -407,6 +423,7 @@ function WorkflowCard({
             href={run.html_url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-amber-400 transition-colors pt-0.5"
           >
             View on GitHub <ExternalLink className="w-2.5 h-2.5" />
@@ -473,6 +490,225 @@ function ActivityItem({
 }
 
 // ---------------------------------------------------------------------------
+// Run steps types & drawer
+// ---------------------------------------------------------------------------
+
+interface RunStep {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  number: number;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+interface RunJob {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  steps: RunStep[];
+}
+
+function stepDuration(startedAt: string | null, completedAt: string | null): string {
+  if (!startedAt || !completedAt) return "--";
+  const diff = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+  if (diff < 0) return "--";
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  const remSecs = secs % 60;
+  return `${mins}m ${remSecs}s`;
+}
+
+function StepIcon({ status, conclusion }: { status: string; conclusion: string | null }) {
+  if (status === "in_progress") {
+    return <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />;
+  }
+  if (status === "completed") {
+    if (conclusion === "success") {
+      return <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />;
+    }
+    if (conclusion === "failure") {
+      return <XCircle className="w-4 h-4 text-rose-400 shrink-0" />;
+    }
+    if (conclusion === "skipped") {
+      return <Circle className="w-4 h-4 text-zinc-600 shrink-0" />;
+    }
+  }
+  // queued / pending
+  return <Circle className="w-4 h-4 text-zinc-500 shrink-0" />;
+}
+
+function StepTimeline({ steps }: { steps: RunStep[] }) {
+  return (
+    <div className="relative pl-6">
+      {/* Vertical connecting line */}
+      <div className="absolute left-[7px] top-2 bottom-2 w-px bg-zinc-700" />
+
+      <div className="space-y-0">
+        {steps.map((step) => (
+          <div key={step.number} className="relative flex items-start gap-3 py-2">
+            {/* Icon positioned on the vertical line */}
+            <div className="absolute -left-6 top-2 flex items-center justify-center w-4 h-4 bg-zinc-900 z-10">
+              <StepIcon status={step.status} conclusion={step.conclusion} />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className={`text-[12px] leading-tight ${
+                step.conclusion === "failure"
+                  ? "text-rose-400 font-medium"
+                  : step.conclusion === "skipped"
+                  ? "text-zinc-600"
+                  : "text-white"
+              }`}>
+                {step.name}
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                {stepDuration(step.started_at, step.completed_at)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StepsSkeleton() {
+  return (
+    <div className="space-y-3 pl-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 animate-pulse">
+          <div className="w-4 h-4 rounded-full bg-zinc-700 shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-32 bg-zinc-700 rounded" />
+            <div className="h-2 w-16 bg-zinc-800 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RunStepsDrawer({
+  runId,
+  workflowName,
+  htmlUrl,
+  onClose,
+}: {
+  runId: number | null;
+  workflowName: string;
+  htmlUrl: string | null;
+  onClose: () => void;
+}) {
+  const [jobs, setJobs] = useState<RunJob[] | null>(null);
+  const [stepsLoading, setStepsLoading] = useState(false);
+  const [stepsError, setStepsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!runId) {
+      setJobs(null);
+      return;
+    }
+
+    let cancelled = false;
+    setStepsLoading(true);
+    setStepsError(null);
+
+    fetch(`/api/workflows/steps?runId=${runId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: { jobs: RunJob[] }) => {
+        if (!cancelled) {
+          setJobs(data.jobs);
+          setStepsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setStepsError(String(err));
+          setStepsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
+
+  return (
+    <Sheet open={runId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent
+        side="right"
+        className="bg-zinc-900 border-zinc-800 sm:max-w-md w-full overflow-y-auto"
+      >
+        <SheetHeader>
+          <SheetTitle className="text-white text-sm font-semibold">
+            {workflowName}
+          </SheetTitle>
+          <SheetDescription className="text-zinc-500 text-[11px]">
+            Run #{runId} &middot; Flow steps
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 px-4 pb-4 overflow-y-auto">
+          {stepsLoading ? (
+            <StepsSkeleton />
+          ) : stepsError ? (
+            <div className="flex items-center gap-2 text-rose-400 text-[12px] py-4">
+              <XCircle className="w-4 h-4 shrink-0" />
+              <span>Failed to load steps: {stepsError}</span>
+            </div>
+          ) : jobs && jobs.length > 0 ? (
+            <div className="space-y-5">
+              {jobs.map((job) => (
+                <div key={job.id}>
+                  {/* Job header (only show if multiple jobs) */}
+                  {jobs.length > 1 && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <StepIcon status={job.status} conclusion={job.conclusion} />
+                      <span className="text-[12px] font-medium text-zinc-300">
+                        {job.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-600 ml-auto">
+                        {stepDuration(job.started_at, job.completed_at)}
+                      </span>
+                    </div>
+                  )}
+                  <StepTimeline steps={job.steps} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[12px] text-zinc-600 text-center py-8">
+              No steps found for this run.
+            </p>
+          )}
+        </div>
+
+        {htmlUrl && (
+          <SheetFooter className="border-t border-zinc-800">
+            <a
+              href={htmlUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-amber-400 transition-colors py-1"
+            >
+              View full run on GitHub <ExternalLink className="w-3 h-3" />
+            </a>
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -490,6 +726,9 @@ export default function PipelinePage() {
     : null;
 
   const [dispatching, setDispatching] = useState<string | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const [selectedWorkflowName, setSelectedWorkflowName] = useState("");
+  const [selectedRunUrl, setSelectedRunUrl] = useState<string | null>(null);
 
   const handleDispatch = useCallback(
     async (workflowFile: string) => {
@@ -639,7 +878,22 @@ export default function PipelinePage() {
               const wf = workflowMap.get(id);
               const meta = WORKFLOW_META[id];
               if (!wf || !meta) return null;
-              return <WorkflowCard key={id} wf={wf} meta={meta} />;
+              return (
+                <WorkflowCard
+                  key={id}
+                  wf={wf}
+                  meta={meta}
+                  onClick={
+                    wf.latestRun
+                      ? () => {
+                          setSelectedRunId(wf.latestRun!.id);
+                          setSelectedWorkflowName(meta.shortLabel);
+                          setSelectedRunUrl(wf.latestRun!.html_url);
+                        }
+                      : undefined
+                  }
+                />
+              );
             })}
           </div>
         )}
@@ -749,6 +1003,14 @@ export default function PipelinePage() {
           every 30s
         </p>
       )}
+
+      {/* Run steps drawer */}
+      <RunStepsDrawer
+        runId={selectedRunId}
+        workflowName={selectedWorkflowName}
+        htmlUrl={selectedRunUrl}
+        onClose={() => setSelectedRunId(null)}
+      />
     </div>
   );
 }
