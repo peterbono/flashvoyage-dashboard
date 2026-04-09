@@ -118,15 +118,21 @@ export default function ContentPage() {
 
   const roiItems = useMemo(() => {
     const raw = unwrap<Record<string, unknown>>(roiQueue.data?.data, 'queue', 'items');
-    return raw.map((r, i) => ({
-      id: String(r.rank ?? i),
-      title: String(r.topic ?? r.title ?? 'Article'),
-      topic: String(r.topic ?? ''),
-      type: String(r.action ?? r.type ?? 'standard'),
-      priority: priorityMap[String(r.priority ?? '')] ?? String(r.priority ?? 'medium'),
-      expectedROI: (r.roi as Record<string, unknown>)?.expectedRoi as number ?? r.expectedROI as number ?? 0,
-      destination: r.destination as string ?? undefined,
-    })) as ROIQueueItem[];
+    return raw
+      .filter((r) => {
+        // Filter out calendar rotation placeholders — they're not real articles
+        const title = String(r.topic ?? r.title ?? '');
+        return !title.startsWith('[Calendar rotation');
+      })
+      .map((r, i) => ({
+        id: String(r.rank ?? i),
+        title: String(r.topic ?? r.title ?? 'Article'),
+        topic: String(r.topic ?? ''),
+        type: String(r.action ?? r.type ?? 'standard'),
+        priority: priorityMap[String(r.priority ?? '')] ?? String(r.priority ?? 'medium'),
+        expectedROI: (r.roi as Record<string, unknown>)?.expectedRoi as number ?? r.expectedROI as number ?? 0,
+        destination: r.destination as string ?? undefined,
+      })) as ROIQueueItem[];
   }, [roiQueue.data]);
 
   const gapItems = useMemo(() => unwrap<ContentGap>(contentGaps.data?.data, 'gaps', 'items'), [contentGaps.data]);
