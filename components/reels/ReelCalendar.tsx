@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, ExternalLink, Eye, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Eye, Heart, Play, Loader2 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,29 @@ export function ReelCalendar({ history, loading }: Props) {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedReel, setSelectedReel] = useState<ReelHistoryEntry | null>(null);
+  const [publishDate, setPublishDate] = useState<string | null>(null);
+  const [publishFormat, setPublishFormat] = useState("pick");
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublish = useCallback(async () => {
+    if (!publishDate) return;
+    setPublishing(true);
+    try {
+      await fetch("/api/workflows/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflow: "publish-reels.yml",
+          inputs: { format: publishFormat },
+        }),
+      });
+      setPublishDate(null);
+    } catch {
+      // non-fatal
+    } finally {
+      setPublishing(false);
+    }
+  }, [publishDate, publishFormat]);
 
   // Group reels by date string (YYYY-MM-DD)
   const reelsByDate = useMemo(() => {
@@ -200,9 +224,7 @@ export function ReelCalendar({ history, loading }: Props) {
                           key={day}
                           onClick={() => {
                             if (dayReels.length < 3) {
-                              // Open manual publish with this date
-                              const tabEl = document.querySelector('[value="publish"]') as HTMLButtonElement;
-                              if (tabEl) tabEl.click();
+                              setPublishDate(dateKey);
                             }
                           }}
                           className={`h-14 sm:h-20 rounded border transition-colors p-1 cursor-pointer group ${
@@ -342,6 +364,43 @@ export function ReelCalendar({ history, loading }: Props) {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish modal — opens when clicking empty calendar cell */}
+      <Dialog open={!!publishDate} onOpenChange={(open) => !open && setPublishDate(null)}>
+        <DialogContent className="sm:max-w-sm bg-zinc-900 border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-white">Publish Reel</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Schedule for {publishDate}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <label className="text-xs text-zinc-500 mb-1 block">Format</label>
+              <select
+                value={publishFormat}
+                onChange={(e) => setPublishFormat(e.target.value)}
+                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white"
+              >
+                {Object.entries(FORMAT_COLORS).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+            </div>
+            <Button
+              onClick={handlePublish}
+              disabled={publishing}
+              className="w-full bg-amber-600 hover:bg-amber-500 text-black font-medium"
+            >
+              {publishing ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Publishing...</>
+              ) : (
+                <><Play className="w-4 h-4 mr-2" /> Publish Now</>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

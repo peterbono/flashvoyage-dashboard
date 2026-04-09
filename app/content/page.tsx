@@ -9,7 +9,6 @@ import { CsvExportButton } from "@/components/ui/csv-export-button";
 import {
   Lightbulb,
   BarChart3,
-  Bot,
   Wifi,
 } from "lucide-react";
 
@@ -24,8 +23,6 @@ import { ArticleScoreTable, type ArticleScore } from "@/components/content/Artic
 import { LifecycleDonut } from "@/components/content/LifecycleDonut";
 import { CompetitorMoves, type CompetitorArticle } from "@/components/content/CompetitorMoves";
 
-// Tab 3 component
-import { AutoExecutorLog, type ExecutorLogEntry } from "@/components/content/AutoExecutorLog";
 
 // --- Data shapes from API responses ---
 interface ApiResponse<T> {
@@ -82,14 +79,6 @@ export default function ContentPage() {
     activeTab === "portfolio"
   );
 
-  // -----------------------------------------------------------------------
-  // Tab 3: "Auto-Executor" data
-  // -----------------------------------------------------------------------
-  const executorLog = usePolling<ApiResponse<ExecutorLogEntry[]>>(
-    "/api/data/auto-executor-log.json",
-    POLL_INTERVAL,
-    activeTab === "auto-executor"
-  );
 
   // -----------------------------------------------------------------------
   // Helpers
@@ -261,8 +250,8 @@ export default function ContentPage() {
               className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-amber-400"
             >
               <Lightbulb className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Quoi ecrire</span>
-              <span className="sm:hidden">Ecrire</span>
+              <span className="hidden sm:inline">What to Write</span>
+              <span className="sm:hidden">Ideas</span>
             </TabsTrigger>
             <TabsTrigger
               value="portfolio"
@@ -270,14 +259,6 @@ export default function ContentPage() {
             >
               <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               Portfolio
-            </TabsTrigger>
-            <TabsTrigger
-              value="auto-executor"
-              className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-violet-400"
-            >
-              <Bot className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Auto-Executor</span>
-              <span className="sm:hidden">Auto</span>
             </TabsTrigger>
           </TabsList>
         </div>
