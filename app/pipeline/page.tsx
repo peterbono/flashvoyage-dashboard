@@ -70,7 +70,8 @@ interface WorkflowMeta {
   icon: React.ElementType;
   shortLabel: string;
   schedule: string;
-  dispatchFile?: string; // if dispatchable
+  brief: string;
+  dispatchFile?: string;
 }
 
 const WORKFLOW_META: Record<string, WorkflowMeta> = {
@@ -78,38 +79,45 @@ const WORKFLOW_META: Record<string, WorkflowMeta> = {
     icon: Film,
     shortLabel: "Publish Reels",
     schedule: "17:00, 19:00, 20:30 UTC daily",
+    brief: "Generates a video reel from article content (Pexels clips + overlay), publishes to IG + FB + Threads, sends to Telegram for TikTok repost.",
     dispatchFile: "publish-reels.yml",
   },
   "daily-analytics": {
     icon: BarChart3,
     shortLabel: "Daily Analytics",
     schedule: "04:00 UTC daily",
+    brief: "Fetches GA4 traffic, Google Trends, IG engagement stats, and Search Console data. Updates audience segments and performance scores.",
   },
   "content-intelligence": {
     icon: Brain,
     shortLabel: "Content Intelligence",
     schedule: "03:00 UTC daily",
+    brief: "Scores all articles (traffic + SEO + trends), detects content gaps, identifies refresh candidates, and builds the ROI-optimized publishing queue.",
     dispatchFile: "content-intelligence.yml",
   },
   "daily-digest": {
     icon: Newspaper,
     shortLabel: "Daily Digest",
     schedule: "01:15 UTC daily",
+    brief: "Generates an HTML morning brief email with reel stats, GA4 metrics, revenue tracking, LLM costs, and token expiry alerts. Sent via Gmail.",
   },
   "refresh-articles": {
     icon: RefreshCw,
     shortLabel: "Content Refresh",
     schedule: "Manual",
+    brief: "Detects articles with declining traffic or outdated info, triggers content refresh pipeline to update titles, sections, and SEO metadata.",
   },
   "publish-social-posts": {
     icon: MessageSquare,
     shortLabel: "Social Posts",
     schedule: "12:00 UTC Tue+Sat",
+    brief: "Recycles top-performing articles as carousel posts on IG + FB + Threads. Picks from evergreen content pool based on engagement history.",
   },
   "publish-article": {
     icon: FileText,
     shortLabel: "Publish Article",
     schedule: "Mon+Wed",
+    brief: "Takes the next article from the publishing queue, generates full content via AI (Haiku + GPT-4o-mini), publishes to WordPress with SEO optimization.",
     dispatchFile: "publish-article.yml",
   },
 };
@@ -387,6 +395,11 @@ function WorkflowCard({
             {meta.schedule}
           </span>
         </div>
+
+        {/* Brief description */}
+        <p className="text-[10px] text-zinc-600 leading-relaxed">
+          {meta.brief}
+        </p>
 
         {/* GitHub link */}
         {run?.html_url && (
