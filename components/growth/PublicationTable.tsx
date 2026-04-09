@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { CsvExportButton } from "@/components/ui/csv-export-button";
 import { PLATFORM_COLORS } from "@/lib/platform-colors";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Instagram, Facebook, Video } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 // ---------------------------------------------------------------------------
@@ -216,12 +216,20 @@ export function PublicationTable({ publications, loading }: PublicationTableProp
                       key={pub.id}
                       className="border-zinc-800/40 hover:bg-zinc-800/30"
                     >
-                      {/* Platform dot */}
+                      {/* Platform icon + label */}
                       <TableCell>
-                        <span
-                          className={`inline-block w-2.5 h-2.5 rounded-full ${colors?.bg ?? "bg-zinc-600"}`}
-                          title={pub.platform}
-                        />
+                        <div className="flex items-center gap-1.5" title={pub.platform}>
+                          {pub.platform === "instagram" ? (
+                            <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                          ) : pub.platform === "facebook" ? (
+                            <Facebook className="w-3.5 h-3.5 text-blue-500" />
+                          ) : (
+                            <Video className="w-3.5 h-3.5 text-cyan-400" />
+                          )}
+                          <span className={`text-[10px] font-medium ${colors?.text ?? "text-zinc-500"}`}>
+                            {pub.platform === "instagram" ? "IG" : pub.platform === "facebook" ? "FB" : "TT"}
+                          </span>
+                        </div>
                       </TableCell>
 
                       {/* Caption (truncated) */}
