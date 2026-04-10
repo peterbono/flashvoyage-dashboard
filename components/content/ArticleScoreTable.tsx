@@ -29,6 +29,8 @@ export interface ArticleScore {
   score: number;
   lifecycle: "NEW" | "GROWING" | "PEAK" | "DECLINING" | "EVERGREEN" | "DEAD";
   traffic7d: number;
+  /** ISO publish date from WordPress, e.g. "2026-03-31T16:22:55" */
+  publishedAt?: string;
   actionsCount: number;
   scoreBreakdown?: {
     seo: number;
@@ -55,6 +57,19 @@ const LIFECYCLE_STYLES: Record<string, string> = {
   EVERGREEN: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
   DEAD: "bg-rose-500/15 text-rose-400 border-rose-500/30",
 };
+
+function formatPublishedAt(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
 
 function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -83,7 +98,7 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
   const bd = article.scoreBreakdown;
   return (
     <TableRow className="border-zinc-800/40 bg-zinc-900/60">
-      <TableCell colSpan={5} className="py-3 px-3 sm:px-6">
+      <TableCell colSpan={6} className="py-3 px-3 sm:px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Score breakdown */}
           {bd && (
@@ -219,6 +234,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
             <TableRow className="border-zinc-800/60 hover:bg-transparent">
               <TableHead className="text-zinc-500 text-xs font-medium w-8" />
               <TableHead className="text-zinc-500 text-xs font-medium">Title</TableHead>
+              <TableHead className="text-zinc-500 text-xs font-medium w-20">Published</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-16 text-right">Score</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-24">Lifecycle</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-20 text-right">Traffic 7d</TableHead>
@@ -227,7 +243,7 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow className="border-zinc-800/40">
-                <TableCell colSpan={5} className="text-xs text-zinc-600 text-center py-6">
+                <TableCell colSpan={6} className="text-xs text-zinc-600 text-center py-6">
                   No articles match the filters.
                 </TableCell>
               </TableRow>
@@ -283,6 +299,11 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
                             </a>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-mono text-zinc-500 tabular-nums whitespace-nowrap">
+                          {formatPublishedAt(article.publishedAt)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <span

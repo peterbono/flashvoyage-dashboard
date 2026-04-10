@@ -177,6 +177,7 @@ export default function ContentPage() {
         score: (r.compositeScore as number) ?? (r.score as number) ?? 0,
         lifecycle: String(r.lifecycle ?? lifecycleBySlug[slug] ?? 'NEW'),
         traffic7d: (r.signals as Record<string, unknown>)?.traffic as number ?? r.traffic7d as number ?? 0,
+        publishedAt: r.date as string ?? r.publishedAt as string ?? undefined,
         actions: (r.actions as string[]) ?? [],
         breakdown: r.signals as Record<string, number> ?? {},
       };
@@ -320,6 +321,7 @@ export default function ContentPage() {
                 columns={[
                   { key: "title" as keyof Record<string, unknown>, header: "Title" },
                   { key: "slug" as keyof Record<string, unknown>, header: "Slug" },
+                  { key: "publishedAt" as keyof Record<string, unknown>, header: "Published" },
                   { key: "score" as keyof Record<string, unknown>, header: "Score" },
                   { key: "lifecycle" as keyof Record<string, unknown>, header: "Lifecycle" },
                   { key: "traffic7d" as keyof Record<string, unknown>, header: "Traffic (7d)" },

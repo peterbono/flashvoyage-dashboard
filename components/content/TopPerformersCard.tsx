@@ -71,9 +71,20 @@ export function TopPerformersCard({ items, loading }: Props) {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-zinc-200 truncate flex-1">
-                        {item.title}
-                      </span>
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-zinc-200 truncate flex-1 hover:text-white hover:underline"
+                        >
+                          {item.title}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-zinc-200 truncate flex-1">
+                          {item.title}
+                        </span>
+                      )}
                       {isTopPerformer ? (
                         <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                       ) : null}

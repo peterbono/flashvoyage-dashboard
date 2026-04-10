@@ -74,9 +74,20 @@ export function RefreshQueueCard({ items, loading }: Props) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-zinc-200 truncate flex-1">
-                      {item.title}
-                    </span>
+                    {item.url ? (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-zinc-200 truncate flex-1 hover:text-white hover:underline"
+                      >
+                        {item.title}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-zinc-200 truncate flex-1">
+                        {item.title}
+                      </span>
+                    )}
                     {item.url ? (
                       <a
                         href={item.url}

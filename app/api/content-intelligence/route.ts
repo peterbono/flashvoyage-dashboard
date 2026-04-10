@@ -236,7 +236,7 @@ export async function GET() {
       return {
         slug: s.slug,
         title: s.title,
-        url: slugToUrl.get(s.slug) ?? "",
+        url: slugToUrl.get(s.slug) ?? (s.slug ? `https://flashvoyage.com/${s.slug}/` : ""),
         score: s.compositeScore,
         monetization: s.signals?.monetization ?? 0,
         trafficSignal: s.signals?.traffic ?? 0,
