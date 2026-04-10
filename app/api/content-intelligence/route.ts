@@ -110,6 +110,8 @@ export interface ContentIntelligence {
     score: number;
     delta7d: number;
     flags: string[];
+    /** Top 2 weakest signals (Phase 2 diagnosis) — normalized 0-1 */
+    weakSignals: Array<{ name: keyof ScoreSignals; value: number }>;
   }>;
   topPerformers: Array<{
     slug: string;
@@ -241,10 +243,27 @@ export async function GET(req: NextRequest) {
         score: s.compositeScore,
         monetization: s.signals?.monetization ?? 0,
         trafficSignal: s.signals?.traffic ?? 0,
+        signals: s.signals,
         flags: s.flags ?? [],
         delta7d,
       };
     });
+
+    // Phase 2 diagnosis: pick the top 2 WEAKEST signals for an article.
+    // This answers "why is this article's score low right now" without
+    // requiring per-signal history files — it just surfaces the current
+    // weak spots so the founder knows what to focus on before clicking refresh.
+    const computeWeakSignals = (
+      signals: ScoreSignals | undefined
+    ): Array<{ name: keyof ScoreSignals; value: number }> => {
+      if (!signals) return [];
+      const entries = (Object.entries(signals) as Array<[keyof ScoreSignals, number]>)
+        .filter(([, v]) => typeof v === "number")
+        .sort(([, a], [, b]) => a - b)
+        .slice(0, 2)
+        .map(([name, value]) => ({ name, value }));
+      return entries;
+    };
 
     // ── KPIs ──────────────────────────────────────────────────────────────
     const totalInvestedUSD = Array.from(costByUrl.values()).reduce(
@@ -282,13 +301,14 @@ export async function GET(req: NextRequest) {
         return a.score - b.score;
       })
       .slice(0, 10)
-      .map(({ slug, title, url, score, delta7d, flags }) => ({
+      .map(({ slug, title, url, score, delta7d, flags, signals }) => ({
         slug,
         title,
         url,
         score,
         delta7d,
         flags,
+        weakSignals: computeWeakSignals(signals),
       }));
 
     // ── Top performers: highest composite score first, ties by monetization ──
