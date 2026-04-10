@@ -63,42 +63,76 @@ function guessFormat(caption: string): string {
 // ---------------------------------------------------------------------------
 
 export function FormatPerformanceChart({ data, publications, loading }: Props) {
-  // Build per-format × per-platform data from publications
+  // Build per-format × per-platform data.
+  //
+  // Historical bug: this component used to gate chartData on
+  // `data.formatScores[format] > 0`, but performance-weights.json in the
+  // content repo ships with all formatScores at 0 until enough reel perf
+  // data has accumulated — which left the chart permanently empty even
+  // when live publications had real FB/IG/TikTok impressions.
+  //
+  // Fix: when publications exist, derive the formats directly from them
+  // (the guessFormat() classifier runs on the caption). formatScores is
+  // used as a secondary sort signal when available, but never as a
+  // filter that could hide everything.
   const chartData = useMemo(() => {
-    if (!data?.formatScores) return [];
-
-    // If we have publications, compute real per-platform breakdown
-    const formatPlatformData: Record<string, { ig: number; fb: number; tt: number; count: Record<string, number> }> = {};
-
+    // ── Case 1: live publications → derive everything from them ─────────
     if (publications && publications.length > 0) {
+      const formatData: Record<
+        string,
+        {
+          ig: { sum: number; count: number };
+          fb: { sum: number; count: number };
+          tt: { sum: number; count: number };
+        }
+      > = {};
+
       for (const pub of publications) {
         const format = guessFormat(pub.caption || "");
-        if (!formatPlatformData[format]) {
-          formatPlatformData[format] = { ig: 0, fb: 0, tt: 0, count: { ig: 0, fb: 0, tt: 0 } };
+        if (!formatData[format]) {
+          formatData[format] = {
+            ig: { sum: 0, count: 0 },
+            fb: { sum: 0, count: 0 },
+            tt: { sum: 0, count: 0 },
+          };
         }
-        const d = formatPlatformData[format];
-        if (pub.platform === "instagram") { d.ig += pub.impressions; d.count.ig++; }
-        else if (pub.platform === "facebook") { d.fb += pub.impressions; d.count.fb++; }
-        else if (pub.platform === "tiktok") { d.tt += pub.impressions; d.count.tt++; }
+        const d = formatData[format];
+        if (pub.platform === "instagram") {
+          d.ig.sum += pub.impressions;
+          d.ig.count++;
+        } else if (pub.platform === "facebook") {
+          d.fb.sum += pub.impressions;
+          d.fb.count++;
+        } else if (pub.platform === "tiktok") {
+          d.tt.sum += pub.impressions;
+          d.tt.count++;
+        }
       }
+
+      return Object.entries(formatData)
+        .map(([format, d]) => ({
+          format,
+          score: data?.formatScores?.[format] ?? 0,
+          ig: d.ig.count > 0 ? Math.round(d.ig.sum / d.ig.count) : 0,
+          fb: d.fb.count > 0 ? Math.round(d.fb.sum / d.fb.count) : 0,
+          tt: d.tt.count > 0 ? Math.round(d.tt.sum / d.tt.count) : 0,
+        }))
+        // Only drop formats where every platform is strictly 0 — keep
+        // everything else so single-platform performers still appear.
+        .filter((d) => d.ig > 0 || d.fb > 0 || d.tt > 0)
+        .sort((a, b) => b.ig + b.fb + b.tt - (a.ig + a.fb + a.tt));
     }
 
+    // ── Case 2: no publications → fall back to formatScores weights ─────
+    if (!data?.formatScores) return [];
     return Object.entries(data.formatScores)
       .filter(([, score]) => score > 0)
-      .map(([format, score]) => {
-        const pd = formatPlatformData[format];
-        return {
-          format,
-          score,
-          ig: pd ? (pd.count.ig > 0 ? Math.round(pd.ig / pd.count.ig) : 0) : 0,
-          fb: pd ? (pd.count.fb > 0 ? Math.round(pd.fb / pd.count.fb) : 0) : 0,
-          tt: pd ? (pd.count.tt > 0 ? Math.round(pd.tt / pd.count.tt) : 0) : 0,
-        };
-      })
+      .map(([format, score]) => ({ format, score, ig: 0, fb: 0, tt: 0 }))
       .sort((a, b) => b.score - a.score);
   }, [data, publications]);
 
   const hasPublications = publications && publications.length > 0;
+  const hasChartData = chartData.length > 0;
 
   if (loading) {
     return (
@@ -130,6 +164,22 @@ export function FormatPerformanceChart({ data, publications, loading }: Props) {
         </div>
 
         <div className="h-64">
+          {!hasChartData ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+              <BarChart3
+                className="w-8 h-8 text-zinc-700 mb-3"
+                aria-hidden="true"
+              />
+              <p className="text-xs text-zinc-400">
+                No format performance data yet
+              </p>
+              <p className="text-[11px] text-zinc-500 mt-1 max-w-sm">
+                {hasPublications
+                  ? "Publications are loading but none have recorded impressions yet. Check back after the next /api/social-stats poll."
+                  : "Waiting for publications data from /api/social-stats. If this persists, the FB Page Token or Meta Graph API may be failing."}
+              </p>
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
             {hasPublications ? (
               // Multi-platform bars (Metricool-style)
@@ -195,6 +245,7 @@ export function FormatPerformanceChart({ data, publications, loading }: Props) {
               </BarChart>
             )}
           </ResponsiveContainer>
+          )}
         </div>
       </CardContent>
     </Card>
