@@ -66,7 +66,10 @@ export function TopPerformersCard({ items, loading }: Props) {
                   key={item.slug}
                   className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800/40 transition-colors group"
                 >
-                  <span className="text-[10px] font-mono text-zinc-600 tabular-nums mt-0.5 w-4 shrink-0">
+                  <span
+                    className="text-[10px] font-mono text-zinc-400 tabular-nums mt-0.5 w-4 shrink-0"
+                    aria-hidden="true"
+                  >
                     {idx + 1}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -76,7 +79,7 @@ export function TopPerformersCard({ items, loading }: Props) {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-zinc-200 truncate flex-1 hover:text-white hover:underline"
+                          className="text-xs text-zinc-200 truncate flex-1 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
                         >
                           {item.title}
                         </a>
@@ -86,14 +89,18 @@ export function TopPerformersCard({ items, loading }: Props) {
                         </span>
                       )}
                       {isTopPerformer ? (
-                        <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                        <Sparkles
+                          className="w-3 h-3 text-amber-400 shrink-0"
+                          aria-label="Top performer"
+                        />
                       ) : null}
                       {item.url ? (
                         <a
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          aria-label={`Open "${item.title}" in a new tab`}
+                          className="text-zinc-500 hover:text-zinc-300 opacity-0 group-hover:opacity-100 focus-within:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0 p-[14px] -m-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
                         >
                           <ExternalLink className="w-3 h-3" />
                         </a>
@@ -103,11 +110,13 @@ export function TopPerformersCard({ items, loading }: Props) {
                       <span
                         className={`text-[10px] tabular-nums font-mono ${scoreColorClass(item.score)}`}
                       >
-                        score {item.score}
+                        <span className="sr-only">Composite score </span>score {item.score}
                       </span>
                       {item.monetization > 0 ? (
                         <span className="text-[10px] text-blue-400 tabular-nums">
-                          💰 {(item.monetization * 100).toFixed(0)}%
+                          <span aria-hidden="true">💰</span>{" "}
+                          <span className="sr-only">Monetization </span>
+                          {(item.monetization * 100).toFixed(0)}%
                         </span>
                       ) : null}
                     </div>
