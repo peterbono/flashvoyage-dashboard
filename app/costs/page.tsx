@@ -41,22 +41,27 @@ interface ByModelMetrics {
 
 interface CostEntry {
   date: string;
-  articleId: number | null;
-  title: string;
-  slug: string | null;
-  url: string;
-  wordCount: number;
+  articleId?: number | null;
+  /** Article title — missing on non-article runs like reels */
+  title?: string;
+  slug?: string | null;
+  url?: string;
+  wordCount?: number;
   totalCostUSD: number;
-  totalTokensIn: number;
-  totalTokensOut: number;
-  totalTokens: number;
-  totalCalls: number;
-  durationMs: number;
-  llmDurationMs: number;
-  llmTimeRatio: number;
-  costPerWord: number;
-  byStep: Record<string, ByStepMetrics>;
-  byModel: Record<string, ByModelMetrics>;
+  totalTokensIn?: number;
+  totalTokensOut?: number;
+  totalTokens?: number;
+  totalCalls?: number;
+  durationMs?: number;
+  llmDurationMs?: number;
+  llmTimeRatio?: number;
+  costPerWord?: number;
+  byStep?: Record<string, ByStepMetrics>;
+  byModel?: Record<string, ByModelMetrics>;
+  /** Non-article run type (e.g. "reel"). Absent for articles. */
+  type?: string;
+  format?: string;
+  destination?: string;
 }
 
 type Granularity = "daily" | "weekly" | "monthly";
@@ -387,9 +392,9 @@ export default function CostsPage() {
       let cmp = 0;
       switch (sortCol) {
         case "date": cmp = a.date.localeCompare(b.date); break;
-        case "cost": cmp = a.totalCostUSD - b.totalCostUSD; break;
-        case "tokens": cmp = a.totalTokens - b.totalTokens; break;
-        case "duration": cmp = a.durationMs - b.durationMs; break;
+        case "cost": cmp = (a.totalCostUSD ?? 0) - (b.totalCostUSD ?? 0); break;
+        case "tokens": cmp = (a.totalTokens ?? 0) - (b.totalTokens ?? 0); break;
+        case "duration": cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0); break;
         case "costPerWord": cmp = (a.costPerWord ?? 0) - (b.costPerWord ?? 0); break;
       }
       return sortAsc ? cmp : -cmp;
@@ -409,8 +414,15 @@ export default function CostsPage() {
     setExpandedRow((prev) => (prev === id ? null : id));
   }
 
+  function getDisplayTitle(entry: CostEntry): string {
+    if (entry.title) return entry.title;
+    // Non-article runs (reels, etc.) — synthesize a readable label
+    const parts = [entry.type, entry.format, entry.destination].filter(Boolean);
+    return parts.length > 0 ? parts.join(" — ") : "Run (no title)";
+  }
+
   function entryKey(entry: CostEntry, index: number): string {
-    return `${entry.date}-${entry.articleId ?? index}-${entry.title.slice(0, 20)}`;
+    return `${entry.date}-${entry.articleId ?? index}-${getDisplayTitle(entry).slice(0, 20)}`;
   }
 
   // ── Loading state ────────────────────────────────────────────────────────
@@ -839,21 +851,21 @@ export default function CostsPage() {
                                 className="flex items-center gap-1.5 hover:text-amber-400 transition-colors"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <span className="truncate">{entry.title}</span>
+                                <span className="truncate">{getDisplayTitle(entry)}</span>
                                 <ExternalLink className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
                               </a>
                             ) : (
-                              <span className="truncate block">{entry.title}</span>
+                              <span className="truncate block">{getDisplayTitle(entry)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right text-amber-400 font-medium tabular-nums">
-                            ${entry.totalCostUSD.toFixed(4)}
+                            ${(entry.totalCostUSD ?? 0).toFixed(4)}
                           </TableCell>
                           <TableCell className="text-right text-zinc-500 tabular-nums">
-                            {entry.totalTokens.toLocaleString()}
+                            {(entry.totalTokens ?? 0).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right text-zinc-500 tabular-nums">
-                            {entry.durationMs > 0 ? formatDuration(entry.durationMs) : "---"}
+                            {entry.durationMs && entry.durationMs > 0 ? formatDuration(entry.durationMs) : "---"}
                           </TableCell>
                           <TableCell className="text-right text-zinc-500 tabular-nums">
                             ${(entry.costPerWord ?? 0).toFixed(6)}
