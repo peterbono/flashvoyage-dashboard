@@ -66,6 +66,7 @@ interface CostEntry {
 
 type Granularity = "daily" | "weekly" | "monthly";
 type SortColumn = "date" | "cost" | "tokens" | "duration" | "costPerWord";
+type Channel = "articles" | "reels";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -224,7 +225,45 @@ export default function CostsPage() {
     });
   }, [entries, dateRange]);
 
-  // Compute previous period of equal length for delta comparison
+  // ── Channel split (articles vs reels) ────────────────────────────────────
+  // Reels are cost entries with type === "reel". Everything else is articles.
+  // The active channel drives every downstream memo (KPIs, charts, table).
+  const [channel, setChannel] = useState<Channel>("articles");
+
+  // Unfiltered breakdown for the hero header — always shows both channels so
+  // the user sees the 95/5 ratio regardless of which tab they're on.
+  const breakdown = useMemo(() => {
+    let articlesCost = 0, articlesCount = 0;
+    let reelsCost = 0, reelsCount = 0;
+    for (const e of filteredEntries) {
+      if (e.type === "reel") {
+        reelsCost += e.totalCostUSD ?? 0;
+        reelsCount += 1;
+      } else {
+        articlesCost += e.totalCostUSD ?? 0;
+        articlesCount += 1;
+      }
+    }
+    const total = articlesCost + reelsCost;
+    return {
+      articles: { cost: articlesCost, count: articlesCount, share: total > 0 ? articlesCost / total : 0 },
+      reels: { cost: reelsCost, count: reelsCount, share: total > 0 ? reelsCost / total : 0 },
+      total,
+    };
+  }, [filteredEntries]);
+
+  // Scoped entries: the single insertion point that feeds every downstream
+  // memo (kpis, sparkData, chartData, modelShares, sortedEntries).
+  const scopedEntries = useMemo(
+    () => filteredEntries.filter((e) =>
+      channel === "reels" ? e.type === "reel" : e.type !== "reel"
+    ),
+    [filteredEntries, channel],
+  );
+
+  // Compute previous period of equal length for delta comparison.
+  // Scoped to the active channel so the delta reflects Articles-only or
+  // Reels-only burn trend, not the mixed total.
   const periodSummary = useMemo(() => {
     const periodMs = dateRange.to.getTime() - dateRange.from.getTime();
     const prevTo = new Date(dateRange.from.getTime() - 1); // day before current range start
@@ -232,10 +271,13 @@ export default function CostsPage() {
     const prevFromStr = prevFrom.toISOString().slice(0, 10);
     const prevToStr = prevTo.toISOString().slice(0, 10);
 
-    const currentTotal = filteredEntries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const isChannelMatch = (e: CostEntry) =>
+      channel === "reels" ? e.type === "reel" : e.type !== "reel";
+
+    const currentTotal = scopedEntries.reduce((s, e) => s + e.totalCostUSD, 0);
     const prevEntries = entries.filter((e) => {
       const d = e.date.slice(0, 10);
-      return d >= prevFromStr && d <= prevToStr;
+      return d >= prevFromStr && d <= prevToStr && isChannelMatch(e);
     });
     const prevTotal = prevEntries.reduce((s, e) => s + e.totalCostUSD, 0);
     const deltaPercent = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : null;
@@ -243,7 +285,7 @@ export default function CostsPage() {
     const presetLabel = dateRange.preset === "custom" ? "period" : dateRange.preset;
 
     return { currentTotal, prevTotal, deltaPercent, presetLabel };
-  }, [entries, filteredEntries, dateRange]);
+  }, [entries, scopedEntries, dateRange, channel]);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [granularity, setGranularity] = useState<Granularity>("daily");
@@ -252,31 +294,39 @@ export default function CostsPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  // ── KPI Computation (scoped to filtered entries) ─────────────────────────
+  // Reset pagination + expanded row whenever the channel changes — stale
+  // indices/keys would be meaningless across the two datasets.
+  useEffect(() => {
+    setPage(0);
+    setExpandedRow(null);
+  }, [channel]);
+
+  // ── KPI Computation (scoped to the active channel) ───────────────────────
   const kpis = useMemo(() => {
-    if (filteredEntries.length === 0) {
+    if (scopedEntries.length === 0) {
       return {
         totalSpend: 0,
         totalSpendDelta: undefined as number | undefined,
         mtdSpend: 0,
-        avgCostArticle: 0,
+        avgCostPerRun: 0,
         avgCostWord: 0,
+        runCount: 0,
       };
     }
 
-    const totalSpend = filteredEntries.reduce((s, e) => s + e.totalCostUSD, 0);
-    const totalWords = filteredEntries.reduce((s, e) => s + (e.wordCount ?? 0), 0);
-    const avgCostArticle = totalSpend / filteredEntries.length;
+    const totalSpend = scopedEntries.reduce((s, e) => s + e.totalCostUSD, 0);
+    const totalWords = scopedEntries.reduce((s, e) => s + (e.wordCount ?? 0), 0);
+    const avgCostPerRun = totalSpend / scopedEntries.length;
     const avgCostWord = totalWords > 0 ? totalSpend / totalWords : 0;
 
     // MTD: current month
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const mtdSpend = filteredEntries
+    const mtdSpend = scopedEntries
       .filter((e) => e.date.slice(0, 7) === currentMonth)
       .reduce((s, e) => s + e.totalCostUSD, 0);
 
-    // Delta: compare last 30d vs previous 30d
+    // Delta: compare last 30d vs previous 30d (scoped to channel)
     const today = new Date();
     const d30ago = new Date(today);
     d30ago.setDate(d30ago.getDate() - 30);
@@ -285,28 +335,31 @@ export default function CostsPage() {
     const d30str = d30ago.toISOString().slice(0, 10);
     const d60str = d60ago.toISOString().slice(0, 10);
 
-    const last30 = filteredEntries
+    const isChannelMatch = (e: CostEntry) =>
+      channel === "reels" ? e.type === "reel" : e.type !== "reel";
+
+    const last30 = scopedEntries
       .filter((e) => e.date.slice(0, 10) >= d30str)
       .reduce((s, e) => s + e.totalCostUSD, 0);
     const prev30 = entries
       .filter((e) => {
         const d = e.date.slice(0, 10);
-        return d >= d60str && d < d30str;
+        return d >= d60str && d < d30str && isChannelMatch(e);
       })
       .reduce((s, e) => s + e.totalCostUSD, 0);
 
     const totalSpendDelta = prev30 > 0 ? ((last30 - prev30) / prev30) * 100 : undefined;
 
-    return { totalSpend, totalSpendDelta, mtdSpend, avgCostArticle, avgCostWord };
-  }, [entries, filteredEntries]);
+    return { totalSpend, totalSpendDelta, mtdSpend, avgCostPerRun, avgCostWord, runCount: scopedEntries.length };
+  }, [entries, scopedEntries, channel]);
 
-  // Spark data for KPI cards (scoped to filtered entries)
+  // Spark data for KPI cards (scoped to active channel)
   const sparkData = useMemo(() => {
-    if (filteredEntries.length === 0) return { cost: [], mtd: [], avgArticle: [], avgWord: [] };
+    if (scopedEntries.length === 0) return { cost: [], mtd: [], avgRun: [], avgWord: [], runs: [] };
 
     // Build daily totals for spark
     const dailyMap = new Map<string, { cost: number; count: number; words: number }>();
-    for (const e of filteredEntries) {
+    for (const e of scopedEntries) {
       const d = e.date.slice(0, 10);
       const existing = dailyMap.get(d);
       if (existing) {
@@ -324,22 +377,23 @@ export default function CostsPage() {
     return {
       cost: days.map(([, d]) => d.cost),
       mtd: days.map(([, d]) => d.cost),
-      avgArticle: days.map(([, d]) => d.count > 0 ? d.cost / d.count : 0),
+      avgRun: days.map(([, d]) => d.count > 0 ? d.cost / d.count : 0),
       avgWord: days.map(([, d]) => d.words > 0 ? d.cost / d.words : 0),
+      runs: days.map(([, d]) => d.count),
     };
-  }, [filteredEntries]);
+  }, [scopedEntries]);
 
-  // ── Cost Trend Chart (scoped to filtered entries) ─────────────────────────
+  // ── Cost Trend Chart (scoped to active channel) ──────────────────────────
   const { data: chartData, modelKeys } = useMemo(
-    () => buildChartData(filteredEntries, granularity),
-    [filteredEntries, granularity],
+    () => buildChartData(scopedEntries, granularity),
+    [scopedEntries, granularity],
   );
 
-  // ── Model Breakdown (donut, scoped to filtered entries) ──────────────────
+  // ── Model Breakdown (donut, scoped to active channel) ────────────────────
   const modelShares = useMemo(() => {
     const totals = new Map<string, number>();
     let grand = 0;
-    for (const entry of filteredEntries) {
+    for (const entry of scopedEntries) {
       for (const [model, metrics] of Object.entries(entry.byModel ?? {})) {
         const cost = (metrics as ByModelMetrics)?.costUSD ?? 0;
         totals.set(model, (totals.get(model) ?? 0) + cost);
@@ -348,8 +402,10 @@ export default function CostsPage() {
     }
     if (grand === 0) return [];
 
-    // Group small models (<3%) into "Other"
-    const threshold = grand * 0.03;
+    // Group small models into "Other". Threshold is 1% per-channel (was 3%
+    // on the old unified view) — the reel pool is ~30x smaller so a higher
+    // threshold would collapse every model into "Other".
+    const threshold = grand * 0.01;
     let otherTotal = 0;
     const significantModels: { name: string; value: number; absValue: number }[] = [];
 
@@ -384,11 +440,11 @@ export default function CostsPage() {
     }
 
     return shares;
-  }, [filteredEntries]);
+  }, [scopedEntries]);
 
-  // ── Run Detail Table (scoped to filtered entries) ────────────────────────
+  // ── Run Detail Table (scoped to active channel) ──────────────────────────
   const sortedEntries = useMemo(() => {
-    return [...filteredEntries].sort((a, b) => {
+    return [...scopedEntries].sort((a, b) => {
       let cmp = 0;
       switch (sortCol) {
         case "date": cmp = a.date.localeCompare(b.date); break;
@@ -399,7 +455,7 @@ export default function CostsPage() {
       }
       return sortAsc ? cmp : -cmp;
     });
-  }, [filteredEntries, sortCol, sortAsc]);
+  }, [scopedEntries, sortCol, sortAsc]);
 
   const totalPages = Math.ceil(sortedEntries.length / PAGE_SIZE);
   const pagedEntries = sortedEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -461,8 +517,8 @@ export default function CostsPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6 overflow-auto h-full max-w-7xl">
-      {/* Header + Date Range Selector + Period Summary */}
-      <div className="space-y-3">
+      {/* Header + Date Range Selector */}
+      <div className="space-y-4">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Cost Tracker</h1>
@@ -474,10 +530,8 @@ export default function CostsPage() {
                 </>
               ) : (
                 <>
-                  Real pipeline spend from {filteredEntries.length} production runs
-                  {filteredEntries.length !== entries.length && (
-                    <span className="text-zinc-600"> (of {entries.length} total)</span>
-                  )}
+                  {scopedEntries.length} {channel} runs
+                  <span className="text-zinc-600"> (of {filteredEntries.length} total in period)</span>
                 </>
               )}
             </p>
@@ -485,36 +539,102 @@ export default function CostsPage() {
           <DateRangeSelector value={dateRange} onChange={setDateRange} />
         </div>
 
-        {/* Period total summary with delta badge */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="text-sm text-zinc-400">
-            Total:{" "}
-            <span className="text-white font-semibold text-base">
-              ${periodSummary.currentTotal.toFixed(2)}
-            </span>
+        {/* ── Hero: unified total + per-channel breakdown ───────────────── */}
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-4 md:p-5 space-y-3">
+          <div className="flex items-baseline justify-between flex-wrap gap-3">
+            <div className="flex items-baseline gap-3">
+              <DollarSign className="w-5 h-5 text-amber-400 self-center" />
+              <div className="text-xs uppercase tracking-wider text-zinc-500 font-medium">
+                Total spend · {periodSummary.presetLabel}
+              </div>
+              <div className="text-2xl md:text-3xl font-bold text-white tabular-nums">
+                ${breakdown.total.toFixed(2)}
+              </div>
+            </div>
+            {periodSummary.deltaPercent !== null ? (
+              <Badge
+                variant="outline"
+                className={
+                  periodSummary.deltaPercent <= 0
+                    ? "border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
+                    : "border-rose-800/60 bg-rose-950/30 text-rose-400 gap-1 text-xs"
+                }
+              >
+                {periodSummary.deltaPercent <= 0 ? (
+                  <TrendingDown className="w-3 h-3" />
+                ) : (
+                  <TrendingUp className="w-3 h-3" />
+                )}
+                {periodSummary.deltaPercent > 0 ? "+" : ""}
+                {periodSummary.deltaPercent.toFixed(1)}% · {channel} vs previous {periodSummary.presetLabel}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs">
+                No previous period data
+              </Badge>
+            )}
           </div>
-          {periodSummary.deltaPercent !== null ? (
-            <Badge
-              variant="outline"
-              className={
-                periodSummary.deltaPercent <= 0
-                  ? "border-emerald-800/60 bg-emerald-950/30 text-emerald-400 gap-1 text-xs"
-                  : "border-rose-800/60 bg-rose-950/30 text-rose-400 gap-1 text-xs"
-              }
-            >
-              {periodSummary.deltaPercent <= 0 ? (
-                <TrendingDown className="w-3 h-3" />
-              ) : (
-                <TrendingUp className="w-3 h-3" />
-              )}
-              {periodSummary.deltaPercent > 0 ? "+" : ""}
-              {periodSummary.deltaPercent.toFixed(1)}% vs previous {periodSummary.presetLabel}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="border-zinc-800 text-zinc-600 text-xs">
-              No previous period data
-            </Badge>
+
+          {/* Breakdown lines */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-sm bg-amber-400 shrink-0" />
+              <span className="text-zinc-400">Articles</span>
+              <span className="text-white font-semibold tabular-nums">
+                ${breakdown.articles.cost.toFixed(2)}
+              </span>
+              <span className="text-zinc-600 tabular-nums">
+                ({(breakdown.articles.share * 100).toFixed(1)}% · {breakdown.articles.count} runs)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-sm bg-cyan-400 shrink-0" />
+              <span className="text-zinc-400">Reels</span>
+              <span className="text-white font-semibold tabular-nums">
+                ${breakdown.reels.cost.toFixed(2)}
+              </span>
+              <span className="text-zinc-600 tabular-nums">
+                ({(breakdown.reels.share * 100).toFixed(1)}% · {breakdown.reels.count} runs)
+              </span>
+            </div>
+          </div>
+
+          {/* Stacked proportion bar */}
+          {breakdown.total > 0 && (
+            <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-800/60">
+              <div
+                className="bg-amber-400"
+                style={{ width: `${breakdown.articles.share * 100}%` }}
+                title={`Articles ${(breakdown.articles.share * 100).toFixed(1)}%`}
+              />
+              <div
+                className="bg-cyan-400"
+                style={{ width: `${breakdown.reels.share * 100}%` }}
+                title={`Reels ${(breakdown.reels.share * 100).toFixed(1)}%`}
+              />
+            </div>
           )}
+        </div>
+
+        {/* ── Segmented control: active channel ─────────────────────────── */}
+        <div className="flex items-center gap-0.5 bg-zinc-900 border border-zinc-800/80 rounded-lg p-0.5 w-fit">
+          {([
+            { key: "articles" as Channel, label: "Articles", color: "text-amber-400" },
+            { key: "reels" as Channel, label: "Reels", color: "text-cyan-400" },
+          ]).map(({ key, label, color }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setChannel(key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                channel === key
+                  ? `bg-zinc-800 text-white`
+                  : `text-zinc-500 hover:text-zinc-300`
+              }`}
+            >
+              <span className={channel === key ? color : ""}>●</span> {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -544,21 +664,32 @@ export default function CostsPage() {
           sparkColor="#60a5fa"
         />
         <KpiCard
-          label="Avg Cost / Article"
-          value={`$${kpis.avgCostArticle.toFixed(3)}`}
+          label={channel === "reels" ? "Avg Cost / Reel" : "Avg Cost / Article"}
+          value={`$${kpis.avgCostPerRun.toFixed(channel === "reels" ? 4 : 3)}`}
           icon={TrendingDown}
           iconColor="text-emerald-400"
-          sparkData={sparkData.avgArticle}
+          sparkData={sparkData.avgRun}
           sparkColor="#34d399"
         />
-        <KpiCard
-          label="Avg Cost / Word"
-          value={`$${kpis.avgCostWord.toFixed(6)}`}
-          icon={Type}
-          iconColor="text-purple-400"
-          sparkData={sparkData.avgWord}
-          sparkColor="#a78bfa"
-        />
+        {channel === "reels" ? (
+          <KpiCard
+            label="Runs"
+            value={kpis.runCount.toLocaleString()}
+            icon={Type}
+            iconColor="text-purple-400"
+            sparkData={sparkData.runs}
+            sparkColor="#a78bfa"
+          />
+        ) : (
+          <KpiCard
+            label="Avg Cost / Word"
+            value={`$${kpis.avgCostWord.toFixed(6)}`}
+            icon={Type}
+            iconColor="text-purple-400"
+            sparkData={sparkData.avgWord}
+            sparkColor="#a78bfa"
+          />
+        )}
       </div>
 
       {/* ── 2. Cost Trend Chart + 3. Model Breakdown ────────────────────── */}
@@ -720,25 +851,34 @@ export default function CostsPage() {
         <CardHeader className="flex flex-row items-center justify-between pb-3 flex-wrap gap-2">
           <CardTitle className="text-sm font-semibold text-white">
             Run Details{" "}
-            <span className="text-zinc-600 font-normal ml-1">({filteredEntries.length})</span>
+            <span className="text-zinc-600 font-normal ml-1">({scopedEntries.length})</span>
           </CardTitle>
           <div className="flex items-center gap-2">
             <CsvExportButton
-              data={filteredEntries as unknown as Record<string, unknown>[]}
-              columns={[
-                { key: "date" as keyof Record<string, unknown>, header: "Date" },
-                { key: "title" as keyof Record<string, unknown>, header: "Title" },
-                { key: "totalCostUSD" as keyof Record<string, unknown>, header: "Total Cost (USD)" },
-                { key: "totalTokens" as keyof Record<string, unknown>, header: "Tokens" },
-                { key: "durationMs" as keyof Record<string, unknown>, header: "Duration (ms)" },
-                { key: "costPerWord" as keyof Record<string, unknown>, header: "Cost Per Word" },
-                { key: "wordCount" as keyof Record<string, unknown>, header: "Word Count" },
-                { key: "url" as keyof Record<string, unknown>, header: "URL" },
-              ]}
-              filename={`costs-${dateRange.preset}-${new Date().toISOString().slice(0, 10)}.csv`}
+              data={scopedEntries as unknown as Record<string, unknown>[]}
+              columns={channel === "reels"
+                ? [
+                    { key: "date" as keyof Record<string, unknown>, header: "Date" },
+                    { key: "type" as keyof Record<string, unknown>, header: "Type" },
+                    { key: "format" as keyof Record<string, unknown>, header: "Format" },
+                    { key: "destination" as keyof Record<string, unknown>, header: "Destination" },
+                    { key: "totalCostUSD" as keyof Record<string, unknown>, header: "Total Cost (USD)" },
+                    { key: "totalTokens" as keyof Record<string, unknown>, header: "Tokens" },
+                  ]
+                : [
+                    { key: "date" as keyof Record<string, unknown>, header: "Date" },
+                    { key: "title" as keyof Record<string, unknown>, header: "Title" },
+                    { key: "totalCostUSD" as keyof Record<string, unknown>, header: "Total Cost (USD)" },
+                    { key: "totalTokens" as keyof Record<string, unknown>, header: "Tokens" },
+                    { key: "durationMs" as keyof Record<string, unknown>, header: "Duration (ms)" },
+                    { key: "costPerWord" as keyof Record<string, unknown>, header: "Cost Per Word" },
+                    { key: "wordCount" as keyof Record<string, unknown>, header: "Word Count" },
+                    { key: "url" as keyof Record<string, unknown>, header: "URL" },
+                  ]}
+              filename={`costs-${channel}-${dateRange.preset}-${new Date().toISOString().slice(0, 10)}.csv`}
             />
-            <Badge variant="outline" className="border-emerald-800/60 bg-emerald-950/30 text-emerald-400 text-xs">
-              {filteredEntries.length} production runs
+            <Badge variant="outline" className={`text-xs gap-1 ${channel === "reels" ? "border-cyan-800/60 bg-cyan-950/30 text-cyan-400" : "border-amber-800/60 bg-amber-950/30 text-amber-400"}`}>
+              {scopedEntries.length} {channel}
             </Badge>
           </div>
         </CardHeader>
@@ -785,21 +925,23 @@ export default function CostsPage() {
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </TableHead>
-                  <TableHead
-                    className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
-                    onClick={() => toggleSort("costPerWord")}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      $/Word
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </TableHead>
+                  {channel !== "reels" && (
+                    <TableHead
+                      className="text-right cursor-pointer hover:text-zinc-300 transition-colors"
+                      onClick={() => toggleSort("costPerWord")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        $/Word
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pagedEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-zinc-600 py-8">
+                    <TableCell colSpan={channel === "reels" ? 6 : 7} className="text-center text-zinc-600 py-8">
                       {filteredEntries.length === 0 && entries.length > 0 ? (
                         <div className="space-y-1">
                           <p>No costs in this period.</p>
@@ -867,15 +1009,17 @@ export default function CostsPage() {
                           <TableCell className="text-right text-zinc-500 tabular-nums">
                             {entry.durationMs && entry.durationMs > 0 ? formatDuration(entry.durationMs) : "---"}
                           </TableCell>
-                          <TableCell className="text-right text-zinc-500 tabular-nums">
-                            ${(entry.costPerWord ?? 0).toFixed(6)}
-                          </TableCell>
+                          {channel !== "reels" && (
+                            <TableCell className="text-right text-zinc-500 tabular-nums">
+                              ${(entry.costPerWord ?? 0).toFixed(6)}
+                            </TableCell>
+                          )}
                         </TableRow>
 
                         {/* Expanded: per-step breakdown */}
                         {isExpanded && stepEntries.length > 0 && (
                           <TableRow className="bg-zinc-950/50 hover:bg-zinc-950/50">
-                            <TableCell colSpan={7} className="p-0">
+                            <TableCell colSpan={channel === "reels" ? 6 : 7} className="p-0">
                               <div className="px-6 py-3 ml-8 border-l-2 border-zinc-700/50">
                                 <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
                                   Step Breakdown
