@@ -64,8 +64,14 @@ export interface ActionRecommendation {
   id: string;
   headline: string;
   duration: string;
+  /** Duration in minutes — used by Actions tab for total time aggregation. */
+  durationMinutes: number;
   tag: "Quick win" | "Long bet";
   expectedLift: string;
+  /** Numeric lift estimate in USD/mo (low bound) for cross-rule aggregation. */
+  liftLow?: number;
+  /** Numeric lift estimate in USD/mo (high bound). */
+  liftHigh?: number;
   rationale: string;
   /** Resolved at eval time: higher surfaces first. */
   priority: number;
@@ -136,8 +142,11 @@ const RULES: Rule[] = [
     build: (ctx) => ({
       headline: "Inject Travelpayouts widgets",
       duration: "5 min",
+      durationMinutes: 5,
       tag: "Quick win",
       expectedLift: "+$5-15/mo EPC per widget",
+      liftLow: 5,
+      liftHigh: 15,
       rationale: `Article has real traffic (${formatPct(
         ctx.signals.traffic
       )}) but no monetization — every view is leaving revenue on the table.`,
@@ -169,6 +178,7 @@ const RULES: Rule[] = [
     build: (ctx) => ({
       headline: "Refresh live data + update YYYY",
       duration: "10 min",
+      durationMinutes: 10,
       tag: "Quick win",
       expectedLift: "+15-25% traffic in 7d",
       rationale: `Freshness decayed to ${formatPct(
@@ -199,6 +209,7 @@ const RULES: Rule[] = [
     build: (ctx) => ({
       headline: "Move money table above fold + add TL;DR",
       duration: "20 min",
+      durationMinutes: 20,
       tag: "Quick win",
       expectedLift: "+30-50% session duration",
       rationale: `People find the article (traffic ${formatPct(
@@ -236,8 +247,11 @@ const RULES: Rule[] = [
     build: (ctx) => ({
       headline: "Add eSIM widget (highest EPC on travel)",
       duration: "5 min",
+      durationMinutes: 5,
       tag: "Quick win",
       expectedLift: "+$10-30/mo — highest EPC",
+      liftLow: 10,
+      liftHigh: 30,
       rationale: `Top-quartile traffic (${formatPct(
         ctx.signals.traffic
       )}) but weak monetization. eSIM has the best EPC across your affiliate mix.`,
@@ -269,6 +283,7 @@ const RULES: Rule[] = [
     build: (ctx) => ({
       headline: "Pre-emptive YYYY refresh",
       duration: "10 min",
+      durationMinutes: 10,
       tag: "Quick win",
       expectedLift: "Protect current ranking",
       rationale: `Winner at ${formatPct(

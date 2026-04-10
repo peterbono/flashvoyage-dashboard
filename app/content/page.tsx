@@ -11,6 +11,7 @@ import {
   BarChart3,
   Wifi,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 
 // Tab 1 components
@@ -30,6 +31,10 @@ import {
   TopPerformersCard,
   type TopPerformerItem,
 } from "@/components/content/TopPerformersCard";
+
+// Tab 3 components
+import { ActionsTab } from "@/components/content/ActionsTab";
+import { evaluateRules } from "@/lib/content/actionRules";
 
 // --- Data shapes from API responses ---
 interface ApiResponse<T> {
@@ -90,7 +95,7 @@ export default function ContentPage() {
   }>(
     "/api/content-intelligence",
     POLL_INTERVAL,
-    activeTab === "portfolio"
+    activeTab === "portfolio" || activeTab === "actions"
   );
 
   // -----------------------------------------------------------------------
@@ -239,6 +244,47 @@ export default function ContentPage() {
   const intelRefresh = contentIntel.data?.refreshQueue ?? [];
   const intelTop = contentIntel.data?.topPerformers ?? [];
 
+  // Total pending action count (for the Actions tab badge) — computed once
+  // so both the tab trigger and the ActionsTab content render consistently.
+  const actionsCount = useMemo(() => {
+    let count = 0;
+    for (const item of intelRefresh) {
+      if (!item.signals) continue;
+      count += evaluateRules(
+        {
+          signals: item.signals,
+          score: item.score,
+          delta7d: item.delta7d,
+          flags: item.flags,
+          slug: item.slug,
+          title: item.title,
+          url: item.url,
+          wpId: item.wpId,
+          surface: "refresh",
+        },
+        3,
+      ).length;
+    }
+    for (const item of intelTop) {
+      if (!item.signals) continue;
+      count += evaluateRules(
+        {
+          signals: item.signals,
+          score: item.score,
+          delta7d: item.delta7d ?? 0,
+          flags: item.flags,
+          slug: item.slug,
+          title: item.title,
+          url: item.url,
+          wpId: item.wpId,
+          surface: "top",
+        },
+        3,
+      ).length;
+    }
+    return count;
+  }, [intelRefresh, intelTop]);
+
   // Count articles with intelligence data
   const articlesCount = scoreItems.length;
   const hasIntelligenceData =
@@ -327,6 +373,21 @@ export default function ContentPage() {
             >
               <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               Portfolio
+            </TabsTrigger>
+            <TabsTrigger
+              value="actions"
+              className="text-xs gap-1 sm:gap-1.5 px-2 sm:px-3 data-active:text-amber-400"
+            >
+              <Zap className="w-3.5 h-3.5 shrink-0" />
+              Actions
+              {actionsCount > 0 && (
+                <span
+                  className="ml-0.5 text-[10px] font-mono tabular-nums px-1 py-0 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                  aria-label={`${actionsCount} pending action${actionsCount > 1 ? "s" : ""}`}
+                >
+                  {actionsCount}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -417,6 +478,20 @@ export default function ContentPage() {
               error={articleScores.error}
             />
           </div>
+        </TabsContent>
+
+        {/* ================================================================ */}
+        {/* TAB 3: Actions — consolidated rule-engine recommendations        */}
+        {/* ================================================================ */}
+        <TabsContent
+          value="actions"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4"
+        >
+          <ActionsTab
+            refreshQueue={intelRefresh}
+            topPerformers={intelTop}
+            loading={contentIntel.loading}
+          />
         </TabsContent>
 
       </Tabs>
