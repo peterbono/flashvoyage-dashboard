@@ -21,6 +21,7 @@ const ALLOWED_WORKFLOWS = new Set([
   "publish-reels.yml",
   "publish-article.yml",
   "content-intelligence.yml",
+  "daily-analytics.yml",
 ]);
 
 interface DispatchBody {

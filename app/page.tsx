@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { usePolling } from "@/lib/usePolling";
-import { Sunrise, Eye, Heart, Users, FileText, Instagram, Facebook, Video, Globe } from "lucide-react";
+import { Sunrise, Eye, Heart, Users, FileText, Instagram, Facebook, Video, Globe, RefreshCw } from "lucide-react";
 
 // Components
 import { CrossPlatformMetricCard } from "@/components/growth/CrossPlatformMetricCard";
@@ -74,8 +74,37 @@ export default function MorningBrief() {
   type PlatformFilter = "all" | "instagram" | "facebook" | "tiktok";
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
 
-  const { data: socialStats, loading: socialLoading } =
+  const { data: socialStats, loading: socialLoading, refetch: refetchSocial } =
     usePolling<SocialStats>(`/api/social-stats?period=${dateRange.preset}`, 120_000);
+
+  // Manual "Refresh now" — instantly refetches IG/FB live stats AND triggers
+  // the daily-analytics workflow for fresh GA4/TikTok data (~3 min background).
+  const [refreshState, setRefreshState] = useState<"idle" | "refreshing" | "done" | "error">("idle");
+  const handleRefresh = useCallback(async () => {
+    setRefreshState("refreshing");
+    try {
+      // 1. Instant refetch with cache-bypass → fresh IG/FB + bypass GA4/TikTok cache
+      const url = `/api/social-stats?period=${dateRange.preset}&bypass-cache=1`;
+      const liveFetch = fetch(url, { cache: "no-store" }).then((r) => r.json());
+
+      // 2. Dispatch daily-analytics workflow in background (refreshes GA4/TikTok files)
+      const dispatch = fetch("/api/workflows/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflow: "daily-analytics.yml" }),
+      });
+
+      await Promise.all([liveFetch, dispatch]);
+      // Pull the just-fetched live data into the polling state
+      await refetchSocial();
+      setRefreshState("done");
+      setTimeout(() => setRefreshState("idle"), 4000);
+    } catch (err) {
+      console.error("[refresh]", err);
+      setRefreshState("error");
+      setTimeout(() => setRefreshState("idle"), 4000);
+    }
+  }, [dateRange.preset, refetchSocial]);
 
   const { data: workflowData, loading: wfLoading } =
     usePolling<WorkflowsPayload>("/api/workflows", 30_000);
@@ -200,6 +229,36 @@ export default function MorningBrief() {
             ))}
           </div>
           <DateRangeSelector value={dateRange} onChange={setDateRange} />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshState === "refreshing"}
+            title={
+              refreshState === "done"
+                ? "Live refreshed • GA4/TikTok updating in background (~3 min)"
+                : refreshState === "error"
+                ? "Refresh failed — check console"
+                : "Refresh live stats now and trigger GA4/TikTok update"
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border transition-colors ${
+              refreshState === "done"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                : refreshState === "error"
+                ? "border-red-500/40 bg-red-500/10 text-red-400"
+                : "border-zinc-800/80 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-50"
+            }`}
+          >
+            <RefreshCw
+              className={`w-3 h-3 ${refreshState === "refreshing" ? "animate-spin" : ""}`}
+            />
+            {refreshState === "refreshing"
+              ? "Refreshing…"
+              : refreshState === "done"
+              ? "Refreshed"
+              : refreshState === "error"
+              ? "Failed"
+              : "Refresh"}
+          </button>
         </div>
       </div>
 

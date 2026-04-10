@@ -324,13 +324,19 @@ export async function GET(request: NextRequest) {
     const periodDays = PERIOD_DAYS[period];
     const now = Date.now();
 
+    // Manual "Refresh now" from the dashboard sets bypass-cache=1 to skip the
+    // 5min in-memory cache on GitHub raw fetches and pull the latest GA4 /
+    // TikTok data committed by the daily-analytics workflow.
+    const bypassCache = request.nextUrl.searchParams.get("bypass-cache") === "1";
+    const contentOpts = bypassCache ? { cacheTtlMs: 0 } : undefined;
+
     // Use env var (tokens.json is gitignored, not available via raw GitHub)
     const fbToken = process.env.FB_PAGE_TOKEN || "";
 
     // Try to get Threads token expiry from content repo (non-fatal)
     let threadsExpiresAt: string | null = null;
     try {
-      const tokensData = (await fetchContentFile("social-distributor/data/tokens.json")) as {
+      const tokensData = (await fetchContentFile("social-distributor/data/tokens.json", contentOpts)) as {
         threads?: { expiresAt: string };
       };
       threadsExpiresAt = tokensData?.threads?.expiresAt || null;
@@ -342,10 +348,10 @@ export async function GET(request: NextRequest) {
     const [igStats, fbStats, audienceData, tiktokData] = await Promise.all([
       fbToken ? fetchIGStats(fbToken) : Promise.resolve({ reelsPublished: 0, recentReels: [], totalLikes: 0, totalComments: 0, totalImpressions: 0, followerCount: null }),
       fbToken ? fetchFBStats(fbToken) : Promise.resolve({ pageLikes: null, pageFollowers: null, recentPosts: [], totalReach: 0, totalImpressions: 0 }),
-      fetchContentFile("social-distributor/data/audience-segments.json").catch(() => null) as Promise<{
+      fetchContentFile("social-distributor/data/audience-segments.json", contentOpts).catch(() => null) as Promise<{
         byCountry?: { country: string; sessions: number }[];
       } | null>,
-      fetchContentFile("data/tiktok-stats.json").catch(() => null) as Promise<{
+      fetchContentFile("data/tiktok-stats.json", contentOpts).catch(() => null) as Promise<{
         account?: { followers: number; totalViews: number; totalLikes: number };
         videos?: unknown[];
       } | null>,
