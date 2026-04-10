@@ -9,7 +9,6 @@ import { CrossPlatformMetricCard } from "@/components/growth/CrossPlatformMetric
 import { DateRangeSelector, type DateRange } from "@/components/ui/date-range-selector";
 import { PublicationTable, type Publication } from "@/components/growth/PublicationTable";
 import { SystemHealthLight } from "@/components/morning-brief/SystemHealthLight";
-import { PostingGoalTracker } from "@/components/morning-brief/PostingGoalTracker";
 import { BestTimeRecommender } from "@/components/morning-brief/BestTimeRecommender";
 import { FormatPerformanceChart } from "@/components/growth/FormatPerformanceChart";
 import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
@@ -315,13 +314,6 @@ export default function MorningBrief() {
 
       {/* ── PUBLICATIONS TABLE ──────────────────────────────────── */}
       <PublicationTable publications={publications} loading={socialLoading} />
-
-      {/* ── INTELLIGENCE ────────────────────────────────────────── */}
-      <PostingGoalTracker
-        todayPublications={(publications)
-          .filter((p) => p.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))
-          .map((p) => ({ platform: p.platform }))}
-      />
 
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
