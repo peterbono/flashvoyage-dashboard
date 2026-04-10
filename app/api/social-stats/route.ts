@@ -208,24 +208,31 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
     const pageLikes = pageData.fan_count ?? null;
     const pageFollowers = pageData.followers_count ?? null;
 
-    // Recent posts (last 10) with inline insights for post_impressions
+    // Recent posts (last 10) with inline insights for post_impressions.
+    // NOTE: the `type` field was deprecated in Graph API v3.3 and now causes
+    // (#12) deprecate_post_aggregated_fields_for_attachement — we use
+    // attachments{media_type} instead to classify video vs post.
     const feedRes = await fetch(
-      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,type,likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
+      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,attachments{media_type},likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
     );
     const feedData = await feedRes.json();
+
+    if (feedData.error) {
+      console.warn("[social-stats] FB feed error:", feedData.error.message);
+    }
 
     const rawPosts = (feedData.data || []).map((p: {
       id: string;
       message?: string;
       created_time: string;
-      type?: string;
+      attachments?: { data?: { media_type?: string }[] };
       likes?: { summary?: { total_count?: number } };
       comments?: { summary?: { total_count?: number } };
       shares?: { count?: number };
     }) => ({
       id: p.id,
       message: p.message?.slice(0, 80),
-      type: p.type === "video" ? "video" : "post",
+      type: p.attachments?.data?.[0]?.media_type === "video" ? "video" : "post",
       likes: p.likes?.summary?.total_count || 0,
       comments: p.comments?.summary?.total_count || 0,
       shares: p.shares?.count || 0,
