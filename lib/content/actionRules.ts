@@ -231,6 +231,140 @@ const RULES: Rule[] = [
           },
     }),
   },
+  {
+    // R6 — reels exist but the linked reel is flopping on IG
+    id: "R6-reel-recut",
+    surface: "refresh",
+    basePriority: 70,
+    gates: [
+      ["reelAmplification", "<", 0.2],
+      ["traffic", ">", 0.4],
+    ],
+    when: (ctx) =>
+      ctx.signals.reelAmplification < 0.2 && ctx.signals.traffic > 0.4,
+    build: (ctx) => ({
+      headline: "Re-cut the reel with a 1.5s hook",
+      duration: "30 min",
+      durationMinutes: 30,
+      tag: "Quick win",
+      expectedLift: "+reel reach if the hook lands",
+      rationale: `Article has traffic (${formatPct(
+        ctx.signals.traffic
+      )}) but reel amplification is weak (${formatPct(
+        ctx.signals.reelAmplification
+      )}). Existing reel likely has a slow opener.`,
+      icon: "Film",
+      cta: {
+        kind: "todo",
+        note: "Reel regen workflow not yet wired — re-cut manually in your reel tool",
+        label: "Manual re-cut",
+      },
+    }),
+  },
+  {
+    // R5 — fresh article with no traffic = SERP intent mismatch
+    id: "R5-gsc-rewrite",
+    surface: "refresh",
+    basePriority: 60,
+    gates: [
+      ["traffic", "<", 0.2],
+      ["freshness", ">", 0.7],
+    ],
+    when: (ctx) =>
+      ctx.signals.traffic < 0.2 && ctx.signals.freshness > 0.7,
+    build: (ctx) => ({
+      headline: "Check GSC + rewrite H1 to the #1 query",
+      duration: "45 min",
+      durationMinutes: 45,
+      tag: "Long bet",
+      expectedLift: "+30-60% impressions if intent aligns",
+      rationale: `Article is fresh (${formatPct(
+        ctx.signals.freshness
+      )}) but traffic is stuck at ${formatPct(
+        ctx.signals.traffic
+      )}. Classic SERP intent mismatch — check GSC top queries first.`,
+      icon: "Search",
+      cta: ctx.wpId
+        ? {
+            kind: "url",
+            href: `https://flashvoyage.com/wp-admin/post.php?post=${ctx.wpId}&action=edit`,
+            label: "Edit in WordPress",
+          }
+        : {
+            kind: "url",
+            href: `https://flashvoyage.com/${ctx.slug}/`,
+            label: "Open article",
+          },
+    }),
+  },
+  {
+    // R2 — trend-aware H2 grafting on a stuck article
+    id: "R2-trending-h2",
+    surface: "refresh",
+    basePriority: 50,
+    gates: [
+      ["traffic", "<", 0.2],
+      ["trendAlignment", "<", 0.3],
+    ],
+    when: (ctx) =>
+      ctx.signals.traffic < 0.2 && ctx.signals.trendAlignment < 0.3,
+    build: (ctx) => ({
+      headline: "Graft a trending H2 section",
+      duration: "90 min",
+      durationMinutes: 90,
+      tag: "Long bet",
+      expectedLift: "+traffic if the trend matches intent",
+      rationale: `Traffic is stuck (${formatPct(
+        ctx.signals.traffic
+      )}) and trend alignment is low (${formatPct(
+        ctx.signals.trendAlignment
+      )}). Consider grafting a new H2 on the current trending angle.`,
+      icon: "TrendingUp",
+      cta: ctx.wpId
+        ? {
+            kind: "url",
+            href: `https://flashvoyage.com/wp-admin/post.php?post=${ctx.wpId}&action=edit`,
+            label: "Edit in WordPress",
+          }
+        : {
+            kind: "url",
+            href: `https://flashvoyage.com/${ctx.slug}/`,
+            label: "Open article",
+          },
+    }),
+  },
+  {
+    // R7 — all signals weak = merge candidate (last-resort destructive)
+    id: "R7-merge-redirect",
+    surface: "refresh",
+    basePriority: 10,
+    gates: [
+      ["traffic", "<", 0.3],
+      ["sessionQuality", "<", 0.3],
+      ["trendAlignment", "<", 0.3],
+      ["freshness", "<", 0.3],
+    ],
+    when: (ctx) =>
+      ctx.signals.traffic < 0.3 &&
+      ctx.signals.sessionQuality < 0.3 &&
+      ctx.signals.trendAlignment < 0.3 &&
+      ctx.signals.freshness < 0.3,
+    build: () => ({
+      headline: "Flag for merge or redirect to a stronger sibling",
+      duration: "60 min",
+      durationMinutes: 60,
+      tag: "Long bet",
+      expectedLift: "Consolidate authority into a winning URL",
+      rationale:
+        "All four core signals are weak — this article is likely a merge candidate rather than a refresh target.",
+      icon: "GitMerge",
+      cta: {
+        kind: "todo",
+        note: "Destructive — requires manual review. Merge or 301 redirect to the strongest sibling.",
+        label: "Manual review",
+      },
+    }),
+  },
 
   // ── TOP PERFORMERS ────────────────────────────────────────────────────
   {
@@ -297,6 +431,66 @@ const RULES: Rule[] = [
         workflow: "refresh-articles.yml",
         inputs: { slug: ctx.slug },
         label: "Run refresh workflow",
+      },
+    }),
+  },
+  {
+    // T4 — authority pass from top-quartile winners to weak siblings
+    id: "T4-internal-links",
+    surface: "top",
+    basePriority: 90,
+    gates: [["traffic", ">", 0.8]],
+    when: (ctx) => ctx.signals.traffic > 0.8,
+    build: (ctx) => ({
+      headline: "Inject internal links to 3-5 weak siblings",
+      duration: "15 min",
+      durationMinutes: 15,
+      tag: "Quick win",
+      expectedLift: "+authority flow to struggling articles",
+      rationale: `Top-quartile traffic (${formatPct(
+        ctx.signals.traffic
+      )}) — use this page as an authority source to lift your weaker siblings.`,
+      icon: "Link",
+      cta: ctx.wpId
+        ? {
+            kind: "url",
+            href: `https://flashvoyage.com/wp-admin/post.php?post=${ctx.wpId}&action=edit`,
+            label: "Edit in WordPress",
+          }
+        : {
+            kind: "url",
+            href: `https://flashvoyage.com/${ctx.slug}/`,
+            label: "Open article",
+          },
+    }),
+  },
+  {
+    // T2 — create a reel as a second discovery funnel for a winner
+    id: "T2-reel-creation",
+    surface: "top",
+    basePriority: 70,
+    gates: [
+      ["traffic", ">", 0.7],
+      ["reelAmplification", "<", 0.3],
+    ],
+    when: (ctx) =>
+      ctx.signals.traffic > 0.7 && ctx.signals.reelAmplification < 0.3,
+    build: (ctx) => ({
+      headline: "Create a reel to amplify this winner",
+      duration: "60 min",
+      durationMinutes: 60,
+      tag: "Long bet",
+      expectedLift: "+social amplification (IG/FB/TikTok)",
+      rationale: `Top traffic (${formatPct(
+        ctx.signals.traffic
+      )}) but no linked reels (${formatPct(
+        ctx.signals.reelAmplification
+      )}). A reel adds a second discovery funnel on top of SEO.`,
+      icon: "Film",
+      cta: {
+        kind: "todo",
+        note: "Reel creation workflow not yet wired — craft manually in your reel tool",
+        label: "Manual create",
       },
     }),
   },

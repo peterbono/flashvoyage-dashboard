@@ -23,6 +23,11 @@ import {
   RefreshCw,
   Check,
   X,
+  Film,
+  Search,
+  TrendingUp,
+  GitMerge,
+  Link as LinkIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { ActionRecommendation, ActionCta } from "@/lib/content/actionRules";
@@ -38,6 +43,11 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
   ShieldCheck,
   Zap,
   Target,
+  Film,
+  Search,
+  TrendingUp,
+  GitMerge,
+  Link: LinkIcon,
 };
 
 function getIcon(name: string): LucideIcon {

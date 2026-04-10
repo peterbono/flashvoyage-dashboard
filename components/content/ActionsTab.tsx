@@ -32,6 +32,11 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
+  Film,
+  Search,
+  TrendingUp,
+  GitMerge,
+  Link as LinkIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -73,6 +78,11 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
   ShieldCheck,
   Zap,
   Target,
+  Film,
+  Search,
+  TrendingUp,
+  GitMerge,
+  Link: LinkIcon,
 };
 
 function getIcon(name: string): LucideIcon {
