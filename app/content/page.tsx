@@ -20,9 +20,15 @@ import { SeasonalAlerts, type SeasonalItem } from "@/components/content/Seasonal
 
 // Tab 2 components
 import { ArticleScoreTable, type ArticleScore } from "@/components/content/ArticleScoreTable";
-import { LifecycleDonut } from "@/components/content/LifecycleDonut";
-import { CompetitorMoves, type CompetitorArticle } from "@/components/content/CompetitorMoves";
-import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
+import { ContentKpiRow, type ContentKpis } from "@/components/content/ContentKpiRow";
+import {
+  RefreshQueueCard,
+  type RefreshQueueItem,
+} from "@/components/content/RefreshQueueCard";
+import {
+  TopPerformersCard,
+  type TopPerformerItem,
+} from "@/components/content/TopPerformersCard";
 
 // --- Data shapes from API responses ---
 interface ApiResponse<T> {
@@ -60,18 +66,6 @@ export default function ContentPage() {
     POLL_INTERVAL
   );
 
-  // Audience geo (GA4 website data)
-  const audienceData = usePolling<ApiResponse<{ byCountry: { country: string; sessions: number }[] }>>(
-    "/api/data/social-distributor/data/audience-segments.json",
-    POLL_INTERVAL,
-    activeTab === "portfolio"
-  );
-  const audienceGeo = useMemo(() => {
-    const raw = audienceData.data?.data;
-    if (!raw?.byCountry) return null;
-    return { byCountry: raw.byCountry };
-  }, [audienceData.data]);
-
   // -----------------------------------------------------------------------
   // Tab 2: "Portfolio" data
   // -----------------------------------------------------------------------
@@ -85,8 +79,15 @@ export default function ContentPage() {
     POLL_INTERVAL,
     activeTab === "portfolio" || activeTab === "quoi-ecrire"
   );
-  const competitorReport = usePolling<ApiResponse<CompetitorArticle[]>>(
-    "/api/data/competitor-report.json",
+
+  // Content Intelligence: unified endpoint aggregating scores + history + cost
+  // Returns { kpis, refreshQueue, topPerformers }
+  const contentIntel = usePolling<{
+    kpis: ContentKpis;
+    refreshQueue: RefreshQueueItem[];
+    topPerformers: TopPerformerItem[];
+  }>(
+    "/api/content-intelligence",
     POLL_INTERVAL,
     activeTab === "portfolio"
   );
@@ -182,26 +183,10 @@ export default function ContentPage() {
     }) as unknown as ArticleScore[];
   }, [articleScores.data, lifecycleBySlug]);
 
-  const competitorItems = useMemo(() => unwrap<CompetitorArticle>(competitorReport.data?.data, 'newArticles', 'articles', 'items'), [competitorReport.data]);
-
-  // Compute lifecycle distribution from article scores as fallback
-  const lifecycleData = useMemo(() => {
-    const raw = lifecycleStates.data?.data;
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const obj = raw as Record<string, unknown>;
-      if (obj.stateCounts && typeof obj.stateCounts === 'object') return obj.stateCounts as Record<string, number>;
-      // Try to use it directly if it looks like {NEW: 5, GROWING: 3, ...}
-      const keys = Object.keys(obj);
-      if (keys.some(k => ['NEW', 'GROWING', 'PEAK', 'DECLINING', 'EVERGREEN', 'DEAD'].includes(k))) return obj as Record<string, number>;
-    }
-    if (scoreItems.length === 0) return {};
-    const dist: Record<string, number> = {};
-    for (const a of scoreItems) {
-      const lc = (a as unknown as Record<string, unknown>).lifecycle as string || 'UNKNOWN';
-      dist[lc] = (dist[lc] || 0) + 1;
-    }
-    return dist;
-  }, [lifecycleStates.data, scoreItems]);
+  // Content intelligence payload (server-aggregated)
+  const intelKpis = contentIntel.data?.kpis ?? null;
+  const intelRefresh = contentIntel.data?.refreshQueue ?? [];
+  const intelTop = contentIntel.data?.topPerformers ?? [];
 
   // Count articles with intelligence data
   const articlesCount = scoreItems.length;
@@ -318,15 +303,13 @@ export default function ContentPage() {
           value="portfolio"
           className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4"
         >
-          {/* Lifecycle donut + Competitor moves + Audience Geo */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <LifecycleDonut data={lifecycleData} />
-            <CompetitorMoves
-              items={competitorItems}
-              loading={competitorReport.loading}
-              error={competitorReport.error}
-            />
-            <AudienceGeoChart data={audienceGeo} loading={audienceData.loading} />
+          {/* CEO KPI row: portfolio health, zombies, declining, invested */}
+          <ContentKpiRow kpis={intelKpis} loading={contentIntel.loading} />
+
+          {/* Refresh queue + Top performers (actionable) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <RefreshQueueCard items={intelRefresh} loading={contentIntel.loading} />
+            <TopPerformersCard items={intelTop} loading={contentIntel.loading} />
           </div>
 
           {/* Article score table (full width) */}
