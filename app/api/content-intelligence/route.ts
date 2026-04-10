@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GET /api/content-intelligence
@@ -209,10 +209,11 @@ async function fetchCostByUrl(): Promise<Map<string, number>> {
 // Handler
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
-    if (cache && now < cache.expiry) {
+    const bypassCache = req.nextUrl.searchParams.get("bypass-cache") === "1";
+    if (!bypassCache && cache && now < cache.expiry) {
       return NextResponse.json(cache.data);
     }
 

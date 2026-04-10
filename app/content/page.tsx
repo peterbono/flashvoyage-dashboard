@@ -10,6 +10,7 @@ import {
   Lightbulb,
   BarChart3,
   Wifi,
+  RefreshCw,
 } from "lucide-react";
 
 // Tab 1 components
@@ -99,6 +100,55 @@ export default function ContentPage() {
     setQueueRefreshKey((k) => k + 1);
     roiQueue.refetch();
   }, [roiQueue]);
+
+  // Manual "Refresh now" — bypasses the 5min in-memory cache on every
+  // content-related source AND dispatches the content-intelligence workflow
+  // for fresh GA4-backed scores / queues (~3 min background).
+  const [refreshState, setRefreshState] = useState<"idle" | "refreshing" | "done" | "error">("idle");
+  const handleRefresh = useCallback(async () => {
+    setRefreshState("refreshing");
+    try {
+      // 1. Force-refresh all underlying data sources by hitting bypass URLs.
+      //    This repopulates the server-side in-memory cache with fresh GitHub
+      //    raw data so the subsequent polling-hook refetches are instant.
+      await Promise.all([
+        fetch("/api/data/roi-optimized-queue.json?bypass-cache=1", { cache: "no-store" }),
+        fetch("/api/data/content-gaps.json?bypass-cache=1", { cache: "no-store" }),
+        fetch("/api/data/seasonal-forecast.json?bypass-cache=1", { cache: "no-store" }),
+        fetch("/api/data/article-scores.json?bypass-cache=1", { cache: "no-store" }),
+        fetch("/api/data/lifecycle-states.json?bypass-cache=1", { cache: "no-store" }),
+        fetch("/api/content-intelligence?bypass-cache=1", { cache: "no-store" }),
+      ]);
+
+      // 2. Dispatch content-intelligence workflow in background (refreshes
+      //    the underlying JSON files in the content repo, ~3 min).
+      const dispatch = fetch("/api/workflows/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflow: "content-intelligence.yml" }),
+      });
+
+      // 3. Pull the just-refreshed server caches into the polling hook state.
+      await Promise.all([
+        roiQueue.refetch(),
+        contentGaps.refetch(),
+        seasonalForecast.refetch(),
+        articleScores.refetch(),
+        lifecycleStates.refetch(),
+        contentIntel.refetch(),
+      ]);
+
+      // 4. Best-effort wait on the workflow dispatch (non-blocking for UI).
+      await dispatch;
+
+      setRefreshState("done");
+      setTimeout(() => setRefreshState("idle"), 4000);
+    } catch (err) {
+      console.error("[content/refresh]", err);
+      setRefreshState("error");
+      setTimeout(() => setRefreshState("idle"), 4000);
+    }
+  }, [roiQueue, contentGaps, seasonalForecast, articleScores, lifecycleStates, contentIntel]);
 
   // ── Extract arrays from wrapped API responses ──
   // API returns {data: {timestamp, queue: [...]}} — we need the inner array
@@ -220,7 +270,39 @@ export default function ContentPage() {
             </Badge>
           )}
         </div>
-        <DateRangeSelector value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-2">
+          <DateRangeSelector value={dateRange} onChange={setDateRange} />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshState === "refreshing"}
+            title={
+              refreshState === "done"
+                ? "Caches refreshed • GA4/scores updating in background (~3 min)"
+                : refreshState === "error"
+                ? "Refresh failed — check console"
+                : "Refresh all content data and trigger content-intelligence workflow"
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border transition-colors ${
+              refreshState === "done"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                : refreshState === "error"
+                ? "border-red-500/40 bg-red-500/10 text-red-400"
+                : "border-zinc-800/80 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-50"
+            }`}
+          >
+            <RefreshCw
+              className={`w-3 h-3 ${refreshState === "refreshing" ? "animate-spin" : ""}`}
+            />
+            {refreshState === "refreshing"
+              ? "Refreshing…"
+              : refreshState === "done"
+              ? "Refreshed"
+              : refreshState === "error"
+              ? "Failed"
+              : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

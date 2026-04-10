@@ -40,7 +40,7 @@ const ALLOWED_PATHS = new Set([
 ]);
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: segments } = await params;
@@ -59,8 +59,15 @@ export async function GET(
     : `data/${relativePath}`;
   const parseAs = relativePath.endsWith(".jsonl") ? "jsonl" : "json";
 
+  // ?bypass-cache=1 → skip the 5min in-memory github.ts cache (used by the
+  // dashboard "Refresh now" CTAs to force a fresh raw GitHub fetch).
+  const bypassCache = req.nextUrl.searchParams.get("bypass-cache") === "1";
+
   try {
-    const data = await fetchContentFile(repoPath, { parseAs });
+    const data = await fetchContentFile(repoPath, {
+      parseAs,
+      ...(bypassCache ? { cacheTtlMs: 0 } : {}),
+    });
 
     return NextResponse.json({
       data,
