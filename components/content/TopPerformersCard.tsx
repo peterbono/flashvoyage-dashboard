@@ -1,7 +1,10 @@
 "use client";
 
-import { Trophy, ExternalLink, Sparkles } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Trophy, ExternalLink, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ActionPanel } from "./ActionPanel";
+import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,6 +17,12 @@ export interface TopPerformerItem {
   score: number;
   monetization: number;
   flags: string[];
+  /** Full 6-signal object for the rule engine */
+  signals?: ScoreSignals;
+  /** 7-day composite score delta */
+  delta7d?: number;
+  /** WordPress post id for wp-admin edit URLs */
+  wpId?: number;
 }
 
 interface Props {
@@ -37,6 +46,29 @@ function scoreColorClass(score: number): string {
 // ---------------------------------------------------------------------------
 
 export function TopPerformersCard({ items, loading }: Props) {
+  // Disclosure: which row has its Action Recommendations panel expanded.
+  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
+  // "Mark done" dismissals per slug (ephemeral — resets on panel close if
+  // the rule stops firing on re-eval).
+  const [dismissed, setDismissed] = useState<Record<string, Set<string>>>({});
+
+  const toggleExpand = useCallback((slug: string) => {
+    setExpandedSlug((prev) => (prev === slug ? null : slug));
+  }, []);
+
+  const handleMarkDone = useCallback(
+    (slug: string) => (ruleId: string) => {
+      setDismissed((d) => {
+        const next = { ...d };
+        const set = new Set(next[slug] ?? []);
+        set.add(ruleId);
+        next[slug] = set;
+        return next;
+      });
+    },
+    [],
+  );
+
   return (
     <Card className="bg-zinc-900/40 border-zinc-800/60 rounded-xl h-full">
       <CardHeader className="pb-2 px-4 pt-4">
@@ -61,11 +93,30 @@ export function TopPerformersCard({ items, loading }: Props) {
           <ul className="space-y-0.5">
             {items.map((item, idx) => {
               const isTopPerformer = item.flags.includes("top_performer");
+              const isExpanded = expandedSlug === item.slug;
+              const panelId = `top-panel-${item.slug}`;
+              const recommendations = isExpanded && item.signals
+                ? evaluateRules(
+                    {
+                      signals: item.signals,
+                      score: item.score,
+                      delta7d: item.delta7d ?? 0,
+                      flags: item.flags,
+                      slug: item.slug,
+                      title: item.title,
+                      url: item.url,
+                      wpId: item.wpId,
+                      surface: "top",
+                    },
+                    3,
+                  ).filter((rec) => !(dismissed[item.slug]?.has(rec.id)))
+                : [];
               return (
                 <li
                   key={item.slug}
-                  className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800/40 transition-colors group"
+                  className="flex flex-col rounded-md hover:bg-zinc-800/40 transition-colors group"
                 >
+                  <div className="flex items-start gap-2 px-2 py-1.5">
                   <span
                     className="text-[10px] font-mono text-zinc-400 tabular-nums mt-0.5 w-4 shrink-0"
                     aria-hidden="true"
@@ -105,6 +156,32 @@ export function TopPerformersCard({ items, loading }: Props) {
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       ) : null}
+                      {item.signals && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpand(item.slug);
+                          }}
+                          aria-expanded={isExpanded}
+                          aria-controls={panelId}
+                          aria-label={`${
+                            isExpanded ? "Hide" : "Show"
+                          } action recommendations for ${item.title}`}
+                          title={
+                            isExpanded
+                              ? "Hide recommendations"
+                              : "Show action recommendations"
+                          }
+                          className="shrink-0 text-zinc-500 hover:text-amber-400 transition-colors p-[14px] -m-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                          )}
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span
@@ -121,6 +198,15 @@ export function TopPerformersCard({ items, loading }: Props) {
                       ) : null}
                     </div>
                   </div>
+                  </div>
+                  {isExpanded && (
+                    <ActionPanel
+                      recommendations={recommendations}
+                      panelId={panelId}
+                      articleTitle={item.title}
+                      onMarkDone={handleMarkDone(item.slug)}
+                    />
+                  )}
                 </li>
               );
             })}

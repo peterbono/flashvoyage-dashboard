@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { RefreshCw, ExternalLink, TrendingDown, Check, X } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { RefreshCw, ExternalLink, TrendingDown, Check, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ActionPanel } from "./ActionPanel";
+import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,6 +19,10 @@ export interface RefreshQueueItem {
   flags: string[];
   /** Top 2 weakest signals (Phase 2 diagnosis) */
   weakSignals?: { name: string; value: number }[];
+  /** Full 6-signal object for the rule engine */
+  signals?: ScoreSignals;
+  /** WordPress post id for wp-admin edit URLs */
+  wpId?: number;
 }
 
 type RowState = "idle" | "refreshing" | "done" | "error";
@@ -66,6 +72,30 @@ export function RefreshQueueCard({ items, loading }: Props) {
   // in ~6 min instead of N × 15 min sequential runs (one dispatch per click).
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchState, setBatchState] = useState<RowState>("idle");
+  // Disclosure: which row has its Action Recommendations panel expanded.
+  // Only one at a time — clicking another row collapses the previous.
+  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
+  // "Mark done" dismissals — used to filter a rule out of the next eval
+  // for a given slug. Resets when the panel closes AND the rule no longer
+  // fires on re-eval (positive feedback, no persistent state).
+  const [dismissed, setDismissed] = useState<Record<string, Set<string>>>({});
+
+  const toggleExpand = useCallback((slug: string) => {
+    setExpandedSlug((prev) => (prev === slug ? null : slug));
+  }, []);
+
+  const handleMarkDone = useCallback(
+    (slug: string) => (ruleId: string) => {
+      setDismissed((d) => {
+        const next = { ...d };
+        const set = new Set(next[slug] ?? []);
+        set.add(ruleId);
+        next[slug] = set;
+        return next;
+      });
+    },
+    [],
+  );
 
   const toggleSelect = useCallback((slug: string) => {
     setSelected((prev) => {
@@ -236,11 +266,32 @@ export function RefreshQueueCard({ items, loading }: Props) {
               const isBusy = rowState === "refreshing";
               const isChecked = selected.has(item.slug);
               const checkboxId = `refresh-select-${item.slug}`;
+              const isExpanded = expandedSlug === item.slug;
+              const panelId = `refresh-panel-${item.slug}`;
+              // Compute recommendations lazily: only when the row is expanded
+              // (avoids running the rule engine on every render for all 10 rows).
+              const recommendations = isExpanded && item.signals
+                ? evaluateRules(
+                    {
+                      signals: item.signals,
+                      score: item.score,
+                      delta7d: item.delta7d,
+                      flags: item.flags,
+                      slug: item.slug,
+                      title: item.title,
+                      url: item.url,
+                      wpId: item.wpId,
+                      surface: "refresh",
+                    },
+                    3,
+                  ).filter((rec) => !(dismissed[item.slug]?.has(rec.id)))
+                : [];
               return (
                 <li
                   key={item.slug}
-                  className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800/40 transition-colors group"
+                  className="flex flex-col rounded-md hover:bg-zinc-800/40 transition-colors group"
                 >
+                  <div className="flex items-start gap-2 px-2 py-1.5">
                   {/* Selection checkbox — always visible so batch mode is discoverable */}
                   <label
                     htmlFor={checkboxId}
@@ -336,6 +387,33 @@ export function RefreshQueueCard({ items, loading }: Props) {
                           <RefreshCw className="w-3 h-3" aria-hidden="true" />
                         )}
                       </button>
+                      {/* Action Recommendations disclosure trigger */}
+                      {item.signals && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpand(item.slug);
+                          }}
+                          aria-expanded={isExpanded}
+                          aria-controls={panelId}
+                          aria-label={`${
+                            isExpanded ? "Hide" : "Show"
+                          } action recommendations for ${item.title}`}
+                          title={
+                            isExpanded
+                              ? "Hide recommendations"
+                              : "Show action recommendations"
+                          }
+                          className="shrink-0 text-zinc-500 hover:text-amber-400 transition-colors p-[14px] -m-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                          )}
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[10px] text-zinc-400 tabular-nums">
@@ -362,12 +440,21 @@ export function RefreshQueueCard({ items, loading }: Props) {
                         );
                       })}
                       {item.flags.length > 0 && !item.weakSignals?.length ? (
-                        <span className="text-[9px] text-zinc-600 truncate">
+                        <span className="text-[9px] text-zinc-400 truncate">
                           {item.flags[0]}
                         </span>
                       ) : null}
                     </div>
                   </div>
+                  </div>
+                  {isExpanded && (
+                    <ActionPanel
+                      recommendations={recommendations}
+                      panelId={panelId}
+                      articleTitle={item.title}
+                      onMarkDone={handleMarkDone(item.slug)}
+                    />
+                  )}
                 </li>
               );
             })}

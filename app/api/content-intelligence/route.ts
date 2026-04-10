@@ -112,6 +112,10 @@ export interface ContentIntelligence {
     flags: string[];
     /** Top 2 weakest signals (Phase 2 diagnosis) — normalized 0-1 */
     weakSignals: Array<{ name: keyof ScoreSignals; value: number }>;
+    /** Full 6-signal object for the client-side rule engine (v3 Action Recommendations) */
+    signals: ScoreSignals;
+    /** WordPress post id for building wp-admin edit URLs */
+    wpId: number;
   }>;
   topPerformers: Array<{
     slug: string;
@@ -120,6 +124,12 @@ export interface ContentIntelligence {
     score: number;
     monetization: number;
     flags: string[];
+    /** Full 6-signal object for the client-side rule engine (v3 Action Recommendations) */
+    signals: ScoreSignals;
+    /** 7-day composite score delta (may be 0 if no history) */
+    delta7d: number;
+    /** WordPress post id for building wp-admin edit URLs */
+    wpId: number;
   }>;
   fetchedAt: string;
 }
@@ -246,6 +256,7 @@ export async function GET(req: NextRequest) {
         signals: s.signals,
         flags: s.flags ?? [],
         delta7d,
+        wpId: s.wpId,
       };
     });
 
@@ -301,7 +312,7 @@ export async function GET(req: NextRequest) {
         return a.score - b.score;
       })
       .slice(0, 10)
-      .map(({ slug, title, url, score, delta7d, flags, signals }) => ({
+      .map(({ slug, title, url, score, delta7d, flags, signals, wpId }) => ({
         slug,
         title,
         url,
@@ -309,6 +320,8 @@ export async function GET(req: NextRequest) {
         delta7d,
         flags,
         weakSignals: computeWeakSignals(signals),
+        signals,
+        wpId,
       }));
 
     // ── Top performers: highest composite score first, ties by monetization ──
@@ -318,13 +331,16 @@ export async function GET(req: NextRequest) {
         return b.monetization - a.monetization;
       })
       .slice(0, 10)
-      .map(({ slug, title, url, score, monetization, flags }) => ({
+      .map(({ slug, title, url, score, monetization, flags, signals, delta7d, wpId }) => ({
         slug,
         title,
         url,
         score,
         monetization,
         flags,
+        signals,
+        delta7d,
+        wpId,
       }));
 
     const payload: ContentIntelligence = {
