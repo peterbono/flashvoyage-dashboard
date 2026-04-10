@@ -334,6 +334,48 @@ const RULES: Rule[] = [
     }),
   },
   {
+    // R8 — catch-all "investigate" action. Lowest priority (5) so every other
+    // rule wins when they fire. Always triggers on the refresh surface so an
+    // article in the Refresh Queue can never show an empty recommendations
+    // panel — the founder always gets at least one next step.
+    id: "R8-investigate-decline",
+    surface: "refresh",
+    basePriority: 5,
+    gates: [], // no severity contribution — stays at priority 5 always
+    when: (ctx) => ctx.surface === "refresh",
+    build: (ctx) => {
+      // Pick the weakest signal to personalize the rationale.
+      const sortedSignals = (
+        Object.entries(ctx.signals) as Array<
+          [keyof typeof ctx.signals, number]
+        >
+      )
+        .filter(([, v]) => typeof v === "number")
+        .sort(([, a], [, b]) => a - b);
+      const weakest = sortedSignals[0]?.[0] ?? "traffic";
+      return {
+        headline: "Investigate decline manually",
+        duration: "15 min",
+        durationMinutes: 15,
+        tag: "Quick win",
+        expectedLift: "Diagnostic — no automated fix available",
+        rationale: `None of the automated rules match this article cleanly. Weakest signal is ${String(
+          weakest,
+        )} (${formatPct(
+          ctx.signals[weakest],
+        )}). Open GSC to check for query drops and SERP competitor shifts, then decide whether to rewrite, merge, or leave alone.`,
+        icon: "Search",
+        cta: {
+          kind: "url",
+          href: `https://search.google.com/search-console/performance/search-analytics?resource_id=sc-domain%3Aflashvoyage.com&breakdown=query&page=*${encodeURIComponent(
+            ctx.slug,
+          )}*`,
+          label: "Open GSC",
+        },
+      };
+    },
+  },
+  {
     // R7 — all signals weak = merge candidate (last-resort destructive)
     id: "R7-merge-redirect",
     surface: "refresh",

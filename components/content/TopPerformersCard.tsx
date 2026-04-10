@@ -5,6 +5,7 @@ import { Trophy, ExternalLink, Sparkles, ChevronDown, ChevronRight } from "lucid
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
 import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
+import { SignalExplainer } from "./SignalExplainer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,10 +77,11 @@ export function TopPerformersCard({ items, loading }: Props) {
           <Trophy className="w-3.5 h-3.5 text-amber-400" />
           Top performers
           {items.length > 0 ? (
-            <span className="text-[10px] font-normal text-zinc-500 normal-case">
+            <span className="text-[10px] font-normal text-zinc-400 normal-case">
               ({items.length})
             </span>
           ) : null}
+          <SignalExplainer />
         </CardTitle>
       </CardHeader>
       <CardContent className="px-2 pb-3">

@@ -125,6 +125,10 @@ export function ActionPanel({
   );
 
   if (recommendations.length === 0) {
+    // Note: on the Refresh Queue surface, R8 (catch-all) should always fire
+    // so this branch should only render on Top Performers. If it ever shows
+    // up on a declining Refresh Queue article, treat it as a rule gap and
+    // point the founder at manual diagnostics rather than claiming "healthy".
     return (
       <div
         id={panelId}
@@ -133,7 +137,7 @@ export function ActionPanel({
         className="mt-2 mx-6 px-3 py-2 rounded-md border border-zinc-800/60 bg-zinc-900/40 text-[11px] text-zinc-400 flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150"
       >
         <Check className="w-3 h-3 text-emerald-400 shrink-0" aria-hidden="true" />
-        This article looks healthy — no recommended actions right now.
+        No automated action matches right now — signals are within healthy thresholds.
       </div>
     );
   }

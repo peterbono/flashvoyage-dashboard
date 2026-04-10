@@ -39,12 +39,18 @@ function makeCtx(overrides: Partial<RuleContext> = {}): RuleContext {
 // ---------------------------------------------------------------------------
 
 describe("evaluateRules — baseline", () => {
-  it("returns empty for a healthy refresh-surface article", () => {
+  it("always returns R8 (catch-all investigate) on refresh surface", () => {
+    // R8 is a guaranteed fallback so a refresh-queue article can never
+    // show an empty recommendations panel — even with neutral signals the
+    // investigation CTA surfaces as a safety net.
     const recs = evaluateRules(makeCtx({ surface: "refresh" }));
-    expect(recs).toEqual([]);
+    expect(recs).toHaveLength(1);
+    expect(recs[0].id).toBe("R8-investigate-decline");
   });
 
   it("returns empty for a healthy top-surface article", () => {
+    // R8 is refresh-only; top performers with neutral signals genuinely
+    // have nothing to recommend.
     const recs = evaluateRules(makeCtx({ surface: "top" }));
     expect(recs).toEqual([]);
   });
@@ -522,9 +528,9 @@ describe("Lift aggregation fields", () => {
 // ---------------------------------------------------------------------------
 
 describe("listRuleIds", () => {
-  it("returns 7 refresh rule ids", () => {
+  it("returns 8 refresh rule ids (including R8 catch-all)", () => {
     const ids = listRuleIds("refresh");
-    expect(ids).toHaveLength(7);
+    expect(ids).toHaveLength(8);
     expect(ids).toEqual(
       expect.arrayContaining([
         "R4-inject-widgets",
@@ -534,6 +540,7 @@ describe("listRuleIds", () => {
         "R5-gsc-rewrite",
         "R2-trending-h2",
         "R7-merge-redirect",
+        "R8-investigate-decline",
       ]),
     );
   });

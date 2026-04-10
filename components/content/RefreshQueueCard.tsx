@@ -5,6 +5,7 @@ import { RefreshCw, ExternalLink, TrendingDown, Check, X, ChevronDown, ChevronRi
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
 import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
+import { SignalExplainer, SIGNAL_META as SIGNAL_DOCS, buildSignalTooltip } from "./SignalExplainer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,18 +53,8 @@ function deltaColorClass(delta: number): string {
 // Component
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Signal label + color for Phase 2 diagnosis badges
-// ---------------------------------------------------------------------------
-
-const SIGNAL_META: Record<string, { label: string; color: string }> = {
-  traffic: { label: "traffic", color: "text-rose-400 bg-rose-950/40 border-rose-800/40" },
-  trendAlignment: { label: "trend", color: "text-orange-400 bg-orange-950/40 border-orange-800/40" },
-  reelAmplification: { label: "reels", color: "text-purple-400 bg-purple-950/40 border-purple-800/40" },
-  freshness: { label: "freshness", color: "text-cyan-400 bg-cyan-950/40 border-cyan-800/40" },
-  sessionQuality: { label: "session", color: "text-blue-400 bg-blue-950/40 border-blue-800/40" },
-  monetization: { label: "monetiz.", color: "text-emerald-400 bg-emerald-950/40 border-emerald-800/40" },
-};
+// Signal label + color now live in ./SignalExplainer (shared source of truth
+// so the popover docs and the badge rendering never drift).
 
 export function RefreshQueueCard({ items, loading }: Props) {
   // Per-row refresh state, keyed by slug.
@@ -209,6 +200,7 @@ export function RefreshQueueCard({ items, loading }: Props) {
                 ({items.length})
               </span>
             ) : null}
+            <SignalExplainer />
           </CardTitle>
           {selected.size > 0 && (
             <button
@@ -425,15 +417,23 @@ export function RefreshQueueCard({ items, loading }: Props) {
                         <span className="sr-only">7-day delta </span>
                         {formatDelta(item.delta7d)} pts/7d
                       </span>
-                      {/* Phase 2: top weak signals (diagnosis) */}
+                      {/* Phase 2: top weak signals (diagnosis) — rich tooltip
+                          on hover/focus shows the full definition + fix hint
+                          from SignalExplainer (same source of truth as the
+                          docs popover). */}
                       {item.weakSignals?.slice(0, 2).map((sig) => {
-                        const meta = SIGNAL_META[sig.name];
+                        const meta = SIGNAL_DOCS[sig.name];
                         if (!meta) return null;
                         return (
                           <span
                             key={sig.name}
-                            className={`text-[9px] px-1.5 py-0 rounded border tabular-nums ${meta.color}`}
-                            title={`${sig.name}: ${(sig.value * 100).toFixed(0)}%`}
+                            tabIndex={0}
+                            role="note"
+                            className={`text-[9px] px-1.5 py-0 rounded border tabular-nums cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${meta.color}`}
+                            title={buildSignalTooltip(sig.name, sig.value)}
+                            aria-label={`${meta.label} signal at ${Math.round(
+                              sig.value * 100,
+                            )} percent`}
                           >
                             {meta.label}
                           </span>
