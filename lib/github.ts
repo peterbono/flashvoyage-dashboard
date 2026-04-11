@@ -130,6 +130,12 @@ export interface WorkflowRunSummary {
   html_url: string;
   run_number: number;
   head_branch: string;
+  /** "workflow_dispatch" for manual runs, "schedule" for crons, etc. */
+  event?: string;
+  /** ISO timestamp when the run actually started executing (vs created_at = queued). */
+  run_started_at?: string;
+  /** Workflow file name (e.g. "refresh-articles.yml") — useful when merging runs across workflows. */
+  workflow_file?: string;
 }
 
 /**
@@ -163,6 +169,9 @@ export async function getWorkflowRuns(
     html_url: r.html_url,
     run_number: r.run_number,
     head_branch: r.head_branch,
+    event: r.event,
+    run_started_at: r.run_started_at,
+    workflow_file: workflowFile,
   }));
 }
 

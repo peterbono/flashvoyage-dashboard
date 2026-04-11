@@ -44,6 +44,7 @@ import {
   type ActionRecommendation,
   type ScoreSignals,
 } from "@/lib/content/actionRules";
+import { ActionHistory } from "./ActionHistory";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -349,21 +350,29 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
   if (evaluated.length === 0) {
     const totalArticles = refreshQueue.length + topPerformers.length;
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-        <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
-          <CheckCircle2 className="w-6 h-6 text-emerald-400" aria-hidden="true" />
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
+            <CheckCircle2
+              className="w-6 h-6 text-emerald-400"
+              aria-hidden="true"
+            />
+          </div>
+          <h3 className="text-sm font-semibold text-zinc-100">
+            Portfolio is healthy
+          </h3>
+          <p className="text-xs text-zinc-400 mt-1">
+            {totalArticles > 0
+              ? `${totalArticles} articles scanned — 0 actions needed right now.`
+              : "No articles loaded yet."}
+          </p>
+          <p className="text-[11px] text-zinc-500 mt-3">
+            Rules re-evaluate on every dashboard poll (every 2 min).
+          </p>
         </div>
-        <h3 className="text-sm font-semibold text-zinc-100">
-          Portfolio is healthy
-        </h3>
-        <p className="text-xs text-zinc-400 mt-1">
-          {totalArticles > 0
-            ? `${totalArticles} articles scanned — 0 actions needed right now.`
-            : "No articles loaded yet."}
-        </p>
-        <p className="text-[11px] text-zinc-500 mt-3">
-          Rules re-evaluate on every dashboard poll (every 2 min).
-        </p>
+        {/* History stays available even when nothing is pending — the
+            founder may still want to review what's been dispatched. */}
+        <ActionHistory />
       </div>
     );
   }
@@ -636,6 +645,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           Hide lower-priority actions
         </button>
       )}
+
+      {/* Action History — collapsible log of recent GH Actions runs */}
+      <ActionHistory />
     </div>
   );
 }
