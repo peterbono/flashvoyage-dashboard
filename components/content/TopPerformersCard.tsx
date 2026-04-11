@@ -4,8 +4,9 @@ import { useCallback, useState } from "react";
 import { Trophy, ExternalLink, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
-import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
+import { evaluateRules, type ScoreSignals, type ActionRecommendation } from "@/lib/content/actionRules";
 import { SignalExplainer } from "./SignalExplainer";
+import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,25 +50,24 @@ function scoreColorClass(score: number): string {
 export function TopPerformersCard({ items, loading }: Props) {
   // Disclosure: which row has its Action Recommendations panel expanded.
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
-  // "Mark done" dismissals per slug (ephemeral — resets on panel close if
-  // the rule stops firing on re-eval).
-  const [dismissed, setDismissed] = useState<Record<string, Set<string>>>({});
+
+  // Shared action history — same source of truth as RefreshQueueCard, so
+  // marking done in one card immediately filters the same rule in the
+  // other (e.g. if both surfaces happened to surface the same advice).
+  const history = useActionHistory();
 
   const toggleExpand = useCallback((slug: string) => {
     setExpandedSlug((prev) => (prev === slug ? null : slug));
   }, []);
 
   const handleMarkDone = useCallback(
-    (slug: string) => (ruleId: string) => {
-      setDismissed((d) => {
-        const next = { ...d };
-        const set = new Set(next[slug] ?? []);
-        set.add(ruleId);
-        next[slug] = set;
-        return next;
-      });
+    (item: TopPerformerItem) => (rec: ActionRecommendation) => {
+      history.markDone(
+        { slug: item.slug, title: item.title, url: item.url },
+        rec,
+      );
     },
-    [],
+    [history],
   );
 
   return (
@@ -111,7 +111,7 @@ export function TopPerformersCard({ items, loading }: Props) {
                       surface: "top",
                     },
                     3,
-                  ).filter((rec) => !(dismissed[item.slug]?.has(rec.id)))
+                  ).filter((rec) => !history.isDismissed(item.slug, rec.id))
                 : [];
               return (
                 <li
@@ -206,7 +206,7 @@ export function TopPerformersCard({ items, loading }: Props) {
                       recommendations={recommendations}
                       panelId={panelId}
                       articleTitle={item.title}
-                      onMarkDone={handleMarkDone(item.slug)}
+                      onMarkDone={handleMarkDone(item)}
                     />
                   )}
                 </li>

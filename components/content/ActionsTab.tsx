@@ -45,6 +45,8 @@ import {
   type ScoreSignals,
 } from "@/lib/content/actionRules";
 import { ActionHistory } from "./ActionHistory";
+import { ActionDoneHistory } from "./ActionDoneHistory";
+import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -157,6 +159,10 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     {},
   );
 
+  // Shared action history — same source of truth as RefreshQueueCard +
+  // TopPerformersCard. Filter out dismissed rules consistently.
+  const history = useActionHistory();
+
   // ── Evaluate rules across both surfaces ──────────────────────────────────
   const evaluated = useMemo<EvaluatedAction[]>(() => {
     const result: EvaluatedAction[] = [];
@@ -176,7 +182,10 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
         },
         3,
       );
-      for (const rec of recs) result.push({ rec, item });
+      for (const rec of recs) {
+        if (history.isDismissed(item.slug, rec.id)) continue;
+        result.push({ rec, item });
+      }
     }
     for (const item of topPerformers) {
       if (!item.signals) continue;
@@ -194,10 +203,13 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
         },
         3,
       );
-      for (const rec of recs) result.push({ rec, item });
+      for (const rec of recs) {
+        if (history.isDismissed(item.slug, rec.id)) continue;
+        result.push({ rec, item });
+      }
     }
     return result;
-  }, [refreshQueue, topPerformers]);
+  }, [refreshQueue, topPerformers, history]);
 
   // ── Group by rule id ─────────────────────────────────────────────────────
   const groups = useMemo<ActionGroup[]>(() => {
@@ -370,8 +382,10 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
             Rules re-evaluate on every dashboard poll (every 2 min).
           </p>
         </div>
-        {/* History stays available even when nothing is pending — the
-            founder may still want to review what's been dispatched. */}
+        {/* Both histories stay available even when nothing is pending — the
+            founder may still want to review past marked-done actions or
+            recent workflow runs. */}
+        <ActionDoneHistory />
         <ActionHistory />
       </div>
     );
@@ -646,7 +660,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
         </button>
       )}
 
-      {/* Action History — collapsible log of recent GH Actions runs */}
+      {/* Actions done — user's own "Mark done" log, persisted in localStorage */}
+      <ActionDoneHistory />
+      {/* Workflow runs — GitHub Actions runs across user-dispatchable workflows */}
       <ActionHistory />
     </div>
   );

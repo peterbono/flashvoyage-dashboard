@@ -31,6 +31,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ActionRecommendation, ActionCta } from "@/lib/content/actionRules";
+export type { ActionRecommendation } from "@/lib/content/actionRules";
 
 // ---------------------------------------------------------------------------
 // Icon registry — rule engine refers to icons by string name
@@ -71,8 +72,10 @@ interface Props {
   panelId: string;
   /** Human label for the article the actions apply to. Used in aria-label. */
   articleTitle: string;
-  /** When the user clicks "Mark done" on a rule, parent re-evaluates the rules. */
-  onMarkDone?: (ruleId: string) => void;
+  /** When the user clicks "Mark done" on a rule, parent persists it to the
+      shared action history and re-evaluates the rules so the action
+      disappears from the display. */
+  onMarkDone?: (rec: ActionRecommendation) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -253,9 +256,9 @@ export function ActionPanel({
                   {onMarkDone && (
                     <button
                       type="button"
-                      onClick={() => onMarkDone(rec.id)}
+                      onClick={() => onMarkDone(rec)}
                       aria-label={`Mark "${rec.headline}" as done`}
-                      title="Mark as done — re-evaluates rules; action disappears if the signal recovered"
+                      title="Mark as done — logs to the Action History and filters the rule out of this view until you undo"
                       className="text-[10px] text-zinc-500 hover:text-zinc-300 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm px-1"
                     >
                       Mark done

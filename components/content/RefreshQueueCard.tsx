@@ -4,8 +4,9 @@ import { useState, useCallback, useMemo } from "react";
 import { RefreshCw, ExternalLink, TrendingDown, Check, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
-import { evaluateRules, type ScoreSignals } from "@/lib/content/actionRules";
+import { evaluateRules, type ScoreSignals, type ActionRecommendation } from "@/lib/content/actionRules";
 import { SignalExplainer, SIGNAL_META as SIGNAL_DOCS, buildSignalTooltip } from "./SignalExplainer";
+import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,26 +67,23 @@ export function RefreshQueueCard({ items, loading }: Props) {
   // Disclosure: which row has its Action Recommendations panel expanded.
   // Only one at a time — clicking another row collapses the previous.
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
-  // "Mark done" dismissals — used to filter a rule out of the next eval
-  // for a given slug. Resets when the panel closes AND the rule no longer
-  // fires on re-eval (positive feedback, no persistent state).
-  const [dismissed, setDismissed] = useState<Record<string, Set<string>>>({});
+
+  // Shared action history hook — persists Mark done across reloads, tabs,
+  // and component remounts (localStorage-backed, cross-tab synced).
+  const history = useActionHistory();
 
   const toggleExpand = useCallback((slug: string) => {
     setExpandedSlug((prev) => (prev === slug ? null : slug));
   }, []);
 
   const handleMarkDone = useCallback(
-    (slug: string) => (ruleId: string) => {
-      setDismissed((d) => {
-        const next = { ...d };
-        const set = new Set(next[slug] ?? []);
-        set.add(ruleId);
-        next[slug] = set;
-        return next;
-      });
+    (item: RefreshQueueItem) => (rec: ActionRecommendation) => {
+      history.markDone(
+        { slug: item.slug, title: item.title, url: item.url },
+        rec,
+      );
     },
-    [],
+    [history],
   );
 
   const toggleSelect = useCallback((slug: string) => {
@@ -276,7 +274,7 @@ export function RefreshQueueCard({ items, loading }: Props) {
                       surface: "refresh",
                     },
                     3,
-                  ).filter((rec) => !(dismissed[item.slug]?.has(rec.id)))
+                  ).filter((rec) => !history.isDismissed(item.slug, rec.id))
                 : [];
               return (
                 <li
@@ -452,7 +450,7 @@ export function RefreshQueueCard({ items, loading }: Props) {
                       recommendations={recommendations}
                       panelId={panelId}
                       articleTitle={item.title}
-                      onMarkDone={handleMarkDone(item.slug)}
+                      onMarkDone={handleMarkDone(item)}
                     />
                   )}
                 </li>
