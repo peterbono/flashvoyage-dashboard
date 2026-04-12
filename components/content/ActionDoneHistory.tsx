@@ -32,7 +32,29 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useActionHistory } from "./useActionHistory";
-import type { ActionDoneEntry } from "@/lib/content/actionHistoryStore";
+import type {
+  ActionDoneEntry,
+  ActionDoneSource,
+} from "@/lib/content/actionHistoryStore";
+
+// Default source for legacy entries written before the `source` field existed.
+function resolveSource(entry: ActionDoneEntry): ActionDoneSource {
+  return entry.source ?? "MANUAL";
+}
+
+// Pill styles per source — emerald=LOW, amber=MED, zinc=MANUAL. Kept in sync
+// with AutoApplySettings tier colors.
+const SOURCE_PILL_STYLES: Record<ActionDoneSource, string> = {
+  AUTO_LOW: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40",
+  AUTO_MED: "bg-amber-500/15 text-amber-400 border-amber-500/40",
+  MANUAL: "bg-zinc-500/15 text-zinc-400 border-zinc-500/40",
+};
+
+const SOURCE_LABELS: Record<ActionDoneSource, string> = {
+  AUTO_LOW: "AUTO·LOW",
+  AUTO_MED: "AUTO·MED",
+  MANUAL: "MANUAL",
+};
 
 // ---------------------------------------------------------------------------
 // Icon registry — mirrors ActionPanel / ActionsTab
@@ -309,6 +331,9 @@ export function ActionDoneHistory() {
                     const accent = isQuickWin
                       ? "border-l-amber-500"
                       : "border-l-cyan-500";
+                    const source = resolveSource(entry);
+                    const sourcePillStyle = SOURCE_PILL_STYLES[source];
+                    const sourceLabel = SOURCE_LABELS[source];
                     return (
                       <li
                         key={entry.id}
@@ -331,6 +356,18 @@ export function ActionDoneHistory() {
                               className={`text-[9px] uppercase tracking-wide font-semibold px-1.5 py-0 rounded ${tagStyle}`}
                             >
                               {entry.ruleTag}
+                            </span>
+                            <span
+                              className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0 rounded border tabular-nums ${sourcePillStyle}`}
+                              title={
+                                source === "AUTO_LOW"
+                                  ? "Applied autonomously by the LOW-tier runner"
+                                  : source === "AUTO_MED"
+                                  ? "Applied via a reviewed draft (MEDIUM tier)"
+                                  : "Marked done by you manually"
+                              }
+                            >
+                              {sourceLabel}
                             </span>
                             <span className="text-[10px] text-zinc-500 tabular-nums">
                               {entry.ruleDuration}
