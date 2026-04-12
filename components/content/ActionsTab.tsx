@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * Actions Tab — Two-zone split redesign.
+ * Actions Tab — v3 redesign.
  *
- * Left zone (66%): Morning briefing — progress bar + Quick Wins / Long Bets cards.
- * Right zone (33%): Context sidebar — HealthRing + Done/Impact/Runs tabs.
+ * Left zone: Today's Briefing progress bar + filter chips + unified table-row list.
+ * Right zone: Context sidebar — HealthRing + Done/Impact/Runs tabs.
  *
- * All data logic (useMemo, useCallback, state) preserved from the original.
- * Visual layer completely rewritten per Product Designer spec.
+ * Visual language: Linear / Vercel / Ahrefs Site Audit table rows.
+ * All data logic preserved from v2 (useMemo, useCallback, useState, useRef, handlers).
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -119,6 +119,8 @@ type GroupState = "idle" | "refreshing" | "done" | "error";
 
 type SidebarTab = "done" | "impact" | "runs";
 
+type FilterKey = "all" | "quick" | "long";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -128,7 +130,7 @@ function formatMinutes(total: number): string {
   const hours = Math.floor(total / 60);
   const mins = total % 60;
   if (mins === 0) return `${hours}h`;
-  return `${hours}h${mins}min`;
+  return `${hours}h ${mins}min`;
 }
 
 function formatDollarRange(low: number, high: number): string {
@@ -142,10 +144,9 @@ function formatDollarRange(low: number, high: number): string {
 // ---------------------------------------------------------------------------
 
 export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
-  // Expansion state for the accordion groups.
+  // Expansion state for the accordion rows.
   const userInteractedRef = useRef(false);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
-  const [showOverflow, setShowOverflow] = useState(false);
 
   // Per-group batch dispatch state.
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>(
@@ -154,6 +155,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
 
   // Sidebar tab state.
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("done");
+
+  // v3: filter chips (replaces Quick Wins / Long Bets section headers).
+  const [filter, setFilter] = useState<FilterKey>("all");
 
   // Shared action history.
   const history = useActionHistory();
@@ -270,31 +274,6 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     }
     return Array.from(map.values());
   }, [refreshQueue, topPerformers, history.entries]);
-
-  // ── Hero aggregation ────────────────────────────────────────────────────
-  const hero = useMemo(() => {
-    const count = evaluated.length;
-    const quickWins = evaluated.filter(
-      (e) => e.rec.tag === "Quick win",
-    ).length;
-    const longBets = count - quickWins;
-    const liftLowTotal = groups.reduce((s, g) => s + g.liftLowSum, 0);
-    const liftHighTotal = groups.reduce((s, g) => s + g.liftHighSum, 0);
-    const totalMinutes = evaluated.reduce(
-      (sum, e) => sum + e.rec.durationMinutes,
-      0,
-    );
-    const articlesAffected = new Set(evaluated.map((e) => e.item.slug)).size;
-    return {
-      count,
-      quickWins,
-      longBets,
-      liftLowTotal,
-      liftHighTotal,
-      totalMinutes,
-      articlesAffected,
-    };
-  }, [evaluated, groups]);
 
   // ── Health data for HealthRing ──────────────────────────────────────────
   const healthData = useMemo(() => {
@@ -423,7 +402,11 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
       </div>
 
       {/* Mini tab bar */}
-      <div className="flex border-b border-zinc-800/60" role="tablist" aria-label="Sidebar tabs">
+      <div
+        className="flex border-b border-white/[0.08]"
+        role="tablist"
+        aria-label="Sidebar tabs"
+      >
         {(
           [
             { id: "done", label: "Done" },
@@ -496,204 +479,260 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     );
   }
 
-  // ── Filter out R8 and split groups ──────────────────────────────────────
+  // ── Filter out R8 and compute filtered display list ─────────────────────
   const displayGroups = groups.filter(
     (g) => g.ruleId !== "R8-investigate-decline",
   );
-  const visibleGroups = showOverflow ? displayGroups : displayGroups.slice(0, 10);
-  const overflowCount = Math.max(0, displayGroups.length - 10);
 
-  const quickWinGroups = visibleGroups.filter((g) => g.tag === "Quick win");
-  const longBetGroups = visibleGroups.filter((g) => g.tag === "Long bet");
+  const quickCount = displayGroups.filter((g) => g.tag === "Quick win").length;
+  const longCount = displayGroups.filter((g) => g.tag === "Long bet").length;
 
-  const quickWinActionCount = quickWinGroups.reduce((s, g) => s + g.items.length, 0);
-  const quickWinTotalMin = quickWinGroups.reduce(
-    (s, g) => s + g.durationMinutes * g.items.length,
-    0,
-  );
-  const longBetActionCount = longBetGroups.reduce((s, g) => s + g.items.length, 0);
-  const longBetTotalMin = longBetGroups.reduce(
-    (s, g) => s + g.durationMinutes * g.items.length,
-    0,
-  );
+  const filteredGroups = displayGroups.filter((g) => {
+    if (filter === "quick") return g.tag === "Quick win";
+    if (filter === "long") return g.tag === "Long bet";
+    return true;
+  });
 
-  // ── Render a single action group card ──────────────────────────────────
-  function renderGroupCard(group: ActionGroup) {
+  // ── Render a single action row (Ahrefs-style table row) ────────────────
+  function renderActionRow(group: ActionGroup) {
     const isExpanded = effectiveExpanded === group.ruleId;
     const isQuickWin = group.tag === "Quick win";
-    const dotColor = isQuickWin ? "bg-emerald-500" : "bg-amber-500";
+    const borderAccent = isQuickWin
+      ? "border-l-emerald-500"
+      : "border-l-amber-500";
     const groupState = groupStates[group.ruleId] ?? "idle";
     const isBatchable =
       BATCHABLE_RULE_IDS.has(group.ruleId) && group.items.length > 0;
     const totalTimeForGroup = group.durationMinutes * group.items.length;
-    const panelId = `actions-group-${group.ruleId}`;
+    const panelId = `actions-row-${group.ruleId}`;
+    const RuleIcon = getIcon(group.icon);
 
     return (
-      <article key={group.ruleId} className="group border-b border-zinc-800/40 last:border-b-0">
-        <div className="flex items-center gap-3 py-2.5 px-1">
-          {/* Colored dot */}
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`}
+      <li key={group.ruleId} className="group">
+        {/* Main row — clickable, full-width */}
+        <button
+          type="button"
+          onClick={() => toggleExpand(group.ruleId)}
+          aria-expanded={isExpanded}
+          aria-controls={panelId}
+          className={`w-full flex items-center gap-3 min-h-[48px] px-4 py-3 border-l-[3px] ${borderAccent} text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:bg-white/[0.04] focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-sky-400/60`}
+        >
+          {/* Rule icon */}
+          <RuleIcon
+            className="w-4 h-4 text-zinc-400 shrink-0"
             aria-hidden="true"
           />
 
-          {/* Title + expand trigger */}
-          <button
-            type="button"
-            onClick={() => toggleExpand(group.ruleId)}
-            aria-expanded={isExpanded}
-            aria-controls={panelId}
-            className="flex-1 min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
-          >
-            <span className="text-sm font-medium text-zinc-200 truncate block">
-              {group.headline}
-            </span>
-          </button>
+          {/* Title */}
+          <span className="flex-1 min-w-0 text-sm font-medium text-zinc-50 truncate">
+            {group.headline}
+          </span>
 
-          {/* Right-aligned metadata */}
+          {/* Metadata — articles · time */}
           <span className="text-xs text-zinc-500 tabular-nums shrink-0 whitespace-nowrap">
-            {group.items.length} article{group.items.length !== 1 ? "s" : ""} &middot;{" "}
+            {group.items.length} article{group.items.length !== 1 ? "s" : ""}
+            {" \u00b7 "}
             {formatMinutes(totalTimeForGroup)}
           </span>
 
-          {/* Run all — ghost, hover-only */}
-          {isBatchable && (
-            <button
-              type="button"
-              onClick={() => handleRunAll(group)}
-              disabled={groupState === "refreshing" || groupState === "done"}
-              aria-label={`Run refresh workflow on all ${group.items.length} articles in this group`}
-              title={
-                groupState === "done"
-                  ? `Dispatched \u2014 processing ${group.items.length} articles`
-                  : groupState === "error"
-                    ? "Dispatch failed \u2014 check console"
-                    : groupState === "refreshing"
-                      ? "Dispatching batch..."
-                      : `Run all ${group.items.length} articles in one batch`
-              }
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 shrink-0 ${
-                groupState === "done"
-                  ? "text-emerald-400 opacity-100"
-                  : groupState === "error"
-                    ? "text-red-400 opacity-100"
-                    : groupState === "refreshing"
-                      ? "text-amber-400 opacity-100"
-                      : "text-zinc-400 hover:text-zinc-200 opacity-0 group-hover:opacity-100"
-              }`}
-            >
-              {groupState === "refreshing" ? (
-                <RefreshCw className="w-3 h-3 animate-spin" aria-hidden="true" />
-              ) : groupState === "done" ? (
-                <Check className="w-3 h-3" aria-hidden="true" />
-              ) : groupState === "error" ? (
-                <X className="w-3 h-3" aria-hidden="true" />
-              ) : (
-                <Zap className="w-3 h-3" aria-hidden="true" />
-              )}
-              {groupState === "refreshing"
-                ? "Running..."
-                : groupState === "done"
-                  ? "Done"
-                  : groupState === "error"
-                    ? "Failed"
-                    : `Run all`}
-            </button>
-          )}
-
-          {/* Chevron */}
-          <button
-            type="button"
-            onClick={() => toggleExpand(group.ruleId)}
-            aria-label={`${isExpanded ? "Collapse" : "Expand"} ${group.headline}`}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors p-1 -m-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm shrink-0"
+          {/* Fix → affordance */}
+          <span
+            className="text-xs text-zinc-400 group-hover:text-zinc-200 shrink-0 flex items-center gap-1 transition-colors"
+            aria-hidden="true"
           >
+            Fix
             {isExpanded ? (
-              <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+              <ChevronDown className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )}
-          </button>
-        </div>
+          </span>
+        </button>
 
-        {/* Expanded panel — article list */}
+        {/* Expanded panel — article list inline */}
         {isExpanded && (
           <div
             id={panelId}
             role="region"
             aria-label={`${group.headline} \u2014 affected articles`}
-            className="pb-3 pl-6 pr-1 space-y-0.5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150"
+            className="border-l-[3px] border-l-transparent bg-white/[0.01]"
           >
-            {group.items.map(({ rec, item }) => (
-              <div
-                key={`${group.ruleId}-${item.slug}`}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800/40 group/item"
-              >
-                <span className="text-zinc-600 text-[10px]" aria-hidden="true">
-                  &mdash;
-                </span>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-zinc-300 truncate flex-1 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
-                >
-                  {item.title}
-                </a>
-                {rec.liftHigh ? (
-                  <span className="text-[10px] text-emerald-400 font-mono tabular-nums shrink-0">
-                    {formatDollarRange(rec.liftLow ?? 0, rec.liftHigh)}
+            <div className="pl-11 pr-4 py-2">
+              {/* Batch run all (if applicable) */}
+              {isBatchable && (
+                <div className="flex items-center justify-between py-2 mb-1">
+                  <span className="text-[11px] uppercase tracking-wide text-zinc-500">
+                    {group.items.length} affected article
+                    {group.items.length !== 1 ? "s" : ""}
                   </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => runItemCta(rec)}
-                  disabled={rec.cta.kind === "todo"}
-                  aria-label={`${rec.cta.label ?? "Run"} for "${item.title}"`}
-                  title={rec.cta.kind === "todo" ? rec.cta.note : undefined}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
-                    rec.cta.kind === "todo"
-                      ? "text-zinc-600 cursor-not-allowed"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                  }`}
-                >
-                  {rec.cta.kind === "url" ? (
-                    <ExternalLink className="w-2.5 h-2.5" aria-hidden="true" />
-                  ) : rec.cta.kind === "workflow" ? (
-                    <Zap className="w-2.5 h-2.5" aria-hidden="true" />
-                  ) : null}
-                  {rec.cta.label ??
-                    (rec.cta.kind === "workflow"
-                      ? "Run"
-                      : rec.cta.kind === "url"
-                        ? "Open"
-                        : "Manual")}
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRunAll(group);
+                    }}
+                    disabled={
+                      groupState === "refreshing" || groupState === "done"
+                    }
+                    aria-label={`Run workflow on all ${group.items.length} articles in this group`}
+                    title={
+                      groupState === "done"
+                        ? `Dispatched \u2014 processing ${group.items.length} articles`
+                        : groupState === "error"
+                          ? "Dispatch failed \u2014 check console"
+                          : groupState === "refreshing"
+                            ? "Dispatching batch..."
+                            : `Run all ${group.items.length} articles in one batch`
+                    }
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
+                      groupState === "done"
+                        ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                        : groupState === "error"
+                          ? "border-red-500/30 text-red-400 bg-red-500/10"
+                          : groupState === "refreshing"
+                            ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                            : "border-white/[0.08] text-zinc-200 hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    {groupState === "refreshing" ? (
+                      <RefreshCw
+                        className="w-3 h-3 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : groupState === "done" ? (
+                      <Check className="w-3 h-3" aria-hidden="true" />
+                    ) : groupState === "error" ? (
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    ) : (
+                      <Zap className="w-3 h-3" aria-hidden="true" />
+                    )}
+                    {groupState === "refreshing"
+                      ? "Running..."
+                      : groupState === "done"
+                        ? "Done"
+                        : groupState === "error"
+                          ? "Failed"
+                          : `Run all ${group.items.length}`}
+                  </button>
+                </div>
+              )}
+
+              {/* Article rows */}
+              <ul className="divide-y divide-white/[0.04]">
+                {group.items.map(({ rec, item }) => {
+                  const dollarRange =
+                    rec.liftHigh != null
+                      ? formatDollarRange(rec.liftLow ?? 0, rec.liftHigh)
+                      : "";
+                  return (
+                    <li
+                      key={`${group.ruleId}-${item.slug}`}
+                      className="flex items-center gap-3 py-2"
+                    >
+                      {/* Slug + title */}
+                      <div className="flex-1 min-w-0">
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-xs text-zinc-300 truncate hover:text-zinc-50 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60 rounded-sm"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </a>
+                        <span className="text-[10px] text-zinc-500 font-mono tabular-nums truncate block">
+                          {item.slug}
+                        </span>
+                      </div>
+
+                      {/* Dollar range (if any) */}
+                      {dollarRange && (
+                        <span className="text-[10px] text-emerald-400 font-mono tabular-nums shrink-0">
+                          {dollarRange}
+                        </span>
+                      )}
+
+                      {/* Mark done */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          history.markDone(
+                            {
+                              slug: item.slug,
+                              title: item.title,
+                              url: item.url,
+                            },
+                            rec,
+                          );
+                        }}
+                        aria-label={`Mark "${item.title}" as done`}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-200 shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60 rounded-sm px-1"
+                      >
+                        Mark done
+                      </button>
+
+                      {/* Per-item CTA */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          runItemCta(rec);
+                        }}
+                        disabled={rec.cta.kind === "todo"}
+                        aria-label={`${rec.cta.label ?? "Run"} for "${item.title}"`}
+                        title={
+                          rec.cta.kind === "todo" ? rec.cta.note : undefined
+                        }
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
+                          rec.cta.kind === "todo"
+                            ? "border-white/[0.04] text-zinc-600 cursor-not-allowed"
+                            : "border-white/[0.08] text-zinc-300 hover:bg-white/[0.06] hover:text-zinc-50"
+                        }`}
+                      >
+                        {rec.cta.kind === "url" ? (
+                          <ExternalLink
+                            className="w-2.5 h-2.5"
+                            aria-hidden="true"
+                          />
+                        ) : rec.cta.kind === "workflow" ? (
+                          <Zap className="w-2.5 h-2.5" aria-hidden="true" />
+                        ) : null}
+                        {rec.cta.label ??
+                          (rec.cta.kind === "workflow"
+                            ? "Run"
+                            : rec.cta.kind === "url"
+                              ? "Open"
+                              : "Manual")}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         )}
-      </article>
+      </li>
     );
   }
 
   // ── Main view ───────────────────────────────────────────────────────────
   return (
     <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
-      {/* ─── Left zone: Morning briefing ─── */}
-      <div className="min-w-0 space-y-5">
-        {/* Progress bar */}
+      {/* ─── Left zone: Today's Briefing table ─── */}
+      <div className="min-w-0 space-y-4">
+        {/* Header + progress bar */}
         <div>
           <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-xl font-semibold text-zinc-50">
+            <h2 className="text-xl font-semibold text-zinc-50 tracking-tight">
               Today&apos;s Briefing
             </h2>
             <span className="text-xs text-zinc-500 tabular-nums">
-              {doneGroupCount} of {displayGroups.length} groups cleared
+              {doneGroupCount} of {displayGroups.length} cleared
             </span>
           </div>
           <div
-            className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden"
+            className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden"
             role="progressbar"
             aria-valuenow={doneGroupCount}
             aria-valuemin={0}
@@ -712,65 +751,64 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           </div>
         </div>
 
-        {/* Quick Wins section */}
-        {quickWinGroups.length > 0 && (
-          <section aria-labelledby="quick-wins-heading">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-4 h-4 text-emerald-400" aria-hidden="true" />
-              <h3
-                id="quick-wins-heading"
-                className="text-sm font-medium text-zinc-200"
+        {/* Filter chips */}
+        <div
+          className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+          role="tablist"
+          aria-label="Filter actions"
+        >
+          {(
+            [
+              { id: "all", label: "All", count: displayGroups.length },
+              { id: "quick", label: "Quick wins", count: quickCount },
+              { id: "long", label: "Long bets", count: longCount },
+            ] as const
+          ).map((chip) => {
+            const active = filter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(chip.id)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${
+                  active
+                    ? "bg-white/[0.08] border-white/[0.12] text-zinc-50"
+                    : "border-white/[0.06] text-zinc-400 hover:bg-white/[0.04]"
+                }`}
               >
-                Quick Wins
-              </h3>
-              <span className="text-xs text-zinc-500">
-                &middot; {quickWinActionCount} action{quickWinActionCount !== 1 ? "s" : ""} &middot;{" "}
-                ~{formatMinutes(quickWinTotalMin)}
-              </span>
-            </div>
-            <div>{quickWinGroups.map(renderGroupCard)}</div>
-          </section>
-        )}
+                {chip.label}
+                <span
+                  className={`ml-1.5 text-[10px] tabular-nums ${active ? "text-zinc-400" : "text-zinc-500"}`}
+                >
+                  {chip.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Long Bets section */}
-        {longBetGroups.length > 0 && (
-          <section aria-labelledby="long-bets-heading">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-4 h-4 text-amber-400" aria-hidden="true" />
-              <h3
-                id="long-bets-heading"
-                className="text-sm font-medium text-zinc-200"
-              >
-                Long Bets
-              </h3>
-              <span className="text-xs text-zinc-500">
-                &middot; {longBetActionCount} action{longBetActionCount !== 1 ? "s" : ""} &middot;{" "}
-                ~{formatMinutes(longBetTotalMin)}
-              </span>
-            </div>
-            <div>{longBetGroups.map(renderGroupCard)}</div>
-          </section>
-        )}
-
-        {/* Overflow toggle */}
-        {overflowCount > 0 && !showOverflow && (
-          <button
-            type="button"
-            onClick={() => setShowOverflow(true)}
-            className="text-xs text-zinc-500 hover:text-zinc-200 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm px-1"
-          >
-            Show +{overflowCount} lower-priority action
-            {overflowCount !== 1 ? "s" : ""}
-          </button>
-        )}
-        {showOverflow && overflowCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowOverflow(false)}
-            className="text-xs text-zinc-500 hover:text-zinc-200 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm px-1"
-          >
-            Hide lower-priority actions
-          </button>
+        {/* Action list — unified Ahrefs-style table */}
+        {filteredGroups.length > 0 ? (
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+            <ul className="divide-y divide-white/[0.06]">
+              {filteredGroups.map(renderActionRow)}
+            </ul>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-8 text-center">
+            <p className="text-sm text-zinc-400">
+              No actions match this filter.
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className="mt-2 text-xs text-zinc-500 hover:text-zinc-200 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60 rounded-sm px-1"
+            >
+              Show all
+            </button>
+          </div>
         )}
       </div>
 

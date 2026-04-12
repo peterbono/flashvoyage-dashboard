@@ -31,6 +31,8 @@ export function HealthRing({
   size = 120,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [displayScore, setDisplayScore] = useState(score);
+  const prevScoreRef = useRef(score);
   const prefersReducedMotion = useRef(false);
 
   useEffect(() => {
@@ -39,6 +41,31 @@ export function HealthRing({
     ).matches;
     setMounted(true);
   }, []);
+
+  // Animate the center number ticking up/down when the score changes — the
+  // SurferSEO dopamine-loop pattern. Uses rAF for smooth 60fps interpolation.
+  useEffect(() => {
+    if (prevScoreRef.current === score) return;
+    if (prefersReducedMotion.current) {
+      setDisplayScore(score);
+      prevScoreRef.current = score;
+      return;
+    }
+    const from = prevScoreRef.current;
+    const to = score;
+    const duration = 600;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplayScore(Math.round(from + (to - from) * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prevScoreRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [score]);
 
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
@@ -135,7 +162,7 @@ export function HealthRing({
           className="fill-white text-2xl font-bold"
           style={{ fontSize: size * 0.28, fontWeight: 700 }}
         >
-          {score}
+          {displayScore}
         </text>
       </svg>
 
