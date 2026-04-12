@@ -178,40 +178,6 @@ export default function MorningBrief() {
     return { ig, fb, tk, total: pubs.length };
   }, [socialStats]);
 
-  // Reel titles from IG + FB, deduped — used to populate the TikTok editor's
-  // title autocomplete so the founder can pick an existing cross-posted reel
-  // instead of retyping. Same reel across platforms shows a "instagram + facebook"
-  // label in the datalist.
-  const suggestedTikTokTitles = useMemo(() => {
-    const pubs = socialStats?.publications ?? [];
-    const byKey = new Map<
-      string,
-      { title: string; platforms: Set<"instagram" | "facebook"> }
-    >();
-    for (const p of pubs) {
-      if (p.platform !== "instagram" && p.platform !== "facebook") continue;
-      // Use first line of caption, strip emoji-like chars + trim, cap at 80 chars.
-      const firstLine = (p.caption || "").split("\n")[0].trim();
-      if (!firstLine) continue;
-      const clean = firstLine
-        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 80);
-      if (!clean || clean.length < 4) continue;
-      const key = clean.toLowerCase();
-      const entry = byKey.get(key);
-      if (entry) {
-        entry.platforms.add(p.platform);
-      } else {
-        byKey.set(key, { title: clean, platforms: new Set([p.platform]) });
-      }
-    }
-    return Array.from(byKey.values())
-      .map((e) => ({ title: e.title, platforms: Array.from(e.platforms) }))
-      .sort((a, b) => b.platforms.length - a.platforms.length);
-  }, [socialStats]);
-
   const allPublications = socialStats?.publications ?? [];
   const publications = platformFilter === "all"
     ? allPublications
@@ -350,12 +316,10 @@ export default function MorningBrief() {
       {/* ── PUBLICATIONS TABLE ──────────────────────────────────── */}
       <PublicationTable publications={publications} loading={socialLoading} />
 
-      {/* ── TIKTOK MANUAL ENTRY ─────────────────────────────────── */}
-      {/* TikTok API app review is still pending — founder pastes stats
-          manually from TikTok Studio until auto-fetch is approved.
-          Title autocomplete sources from IG/FB published reels so the
-          same cross-posted reel can be tagged without retyping. */}
-      <TikTokStatsEditor suggestedTitles={suggestedTikTokTitles} />
+      {/* ── TIKTOK CSV IMPORT ───────────────────────────────────── */}
+      {/* TikTok API app review is still pending — founder drops the
+          "Content" CSV export from TikTok Studio to refresh video stats. */}
+      <TikTokStatsEditor />
 
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
