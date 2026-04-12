@@ -503,6 +503,14 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     const totalTimeForGroup = group.durationMinutes * group.items.length;
     const panelId = `actions-row-${group.ruleId}`;
     const RuleIcon = getIcon(group.icon);
+    // Count "fresh" articles: those with NO entry in the action-done history
+    // (any rule). Signals articles the founder has never acted on yet vs
+    // articles that have accumulated edits over time.
+    const freshItems = group.items.filter(
+      ({ item }) =>
+        !history.entries.some((e) => e.slug === item.slug),
+    );
+    const freshCount = freshItems.length;
 
     return (
       <li key={group.ruleId} className="group">
@@ -524,6 +532,24 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           <span className="flex-1 min-w-0 text-sm font-medium text-zinc-50 truncate">
             {group.headline}
           </span>
+
+          {/* "NEW" badge if any article is fresh (no prior action-done entry) */}
+          {freshCount > 0 && freshCount < group.items.length && (
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 tabular-nums shrink-0"
+              title={`${freshCount} article${freshCount !== 1 ? "s" : ""} never worked on before`}
+            >
+              {freshCount} new
+            </span>
+          )}
+          {freshCount === group.items.length && group.items.length > 0 && (
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0"
+              title="All articles in this group are untouched"
+            >
+              all new
+            </span>
+          )}
 
           {/* Metadata — articles · time */}
           <span className="text-xs text-zinc-500 tabular-nums shrink-0 whitespace-nowrap">
@@ -621,6 +647,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
                     rec.liftHigh != null
                       ? formatDollarRange(rec.liftLow ?? 0, rec.liftHigh)
                       : "";
+                  const isFresh = !history.entries.some(
+                    (e) => e.slug === item.slug,
+                  );
                   return (
                     <li
                       key={`${group.ruleId}-${item.slug}`}
@@ -628,15 +657,25 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
                     >
                       {/* Slug + title */}
                       <div className="flex-1 min-w-0">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-xs text-zinc-300 truncate hover:text-zinc-50 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60 rounded-sm"
-                          title={item.title}
-                        >
-                          {item.title}
-                        </a>
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-zinc-300 truncate hover:text-zinc-50 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/60 rounded-sm"
+                            title={item.title}
+                          >
+                            {item.title}
+                          </a>
+                          {isFresh && (
+                            <span
+                              className="text-[9px] font-semibold px-1 py-[1px] rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0 uppercase tracking-wider"
+                              title="No prior edits logged on this article"
+                            >
+                              new
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-zinc-500 font-mono tabular-nums truncate block">
                           {item.slug}
                         </span>
