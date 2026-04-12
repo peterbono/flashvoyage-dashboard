@@ -29,6 +29,7 @@ import {
   Search,
   TrendingUp,
   GitMerge,
+  Globe,
   Link as LinkIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +61,9 @@ export interface ActionableItem {
   flags: string[];
   signals?: ScoreSignals;
   wpId?: number;
+  /** Phase 1 FR-share metadata — passed to evaluateRules for R9-fr-seo-rewrite. */
+  frShare?: number | null;
+  frPageviews?: number;
 }
 
 interface Props {
@@ -83,6 +87,7 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
   Search,
   TrendingUp,
   GitMerge,
+  Globe,
   Link: LinkIcon,
 };
 
@@ -181,6 +186,8 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           url: item.url,
           wpId: item.wpId,
           surface: "refresh",
+          frShare: item.frShare,
+          frPageviews: item.frPageviews,
         },
         3,
       );
@@ -202,6 +209,8 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           url: item.url,
           wpId: item.wpId,
           surface: "top",
+          frShare: item.frShare,
+          frPageviews: item.frPageviews,
         },
         3,
       );

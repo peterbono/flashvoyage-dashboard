@@ -31,6 +31,10 @@ function makeCtx(overrides: Partial<RuleContext> = {}): RuleContext {
     url: overrides.url ?? "https://flashvoyage.com/test-article-slug/",
     wpId: overrides.wpId ?? 42,
     surface: overrides.surface ?? "refresh",
+    // FR metadata defaults to undefined so most tests keep their baseline
+    // behavior (R9 can't fire without explicit frShare / fr_light flag).
+    frShare: "frShare" in overrides ? overrides.frShare : undefined,
+    frPageviews: overrides.frPageviews,
   };
 }
 
@@ -177,6 +181,100 @@ describe("Refresh rules — individual firing", () => {
       }),
     );
     expect(recs.some((r) => r.id === "R7-merge-redirect")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R9 — FR-SEO rewrite (Phase 1 fr-share-scoring feat)
+// ---------------------------------------------------------------------------
+
+describe("R9 — fr-seo-rewrite", () => {
+  it("fires when frShare < 0.25 AND composite score >= 50", () => {
+    // Canonical R9 trigger: article is performing globally (score 60) but
+    // only ~10% of its traffic comes from France — clear FR-SEO opportunity.
+    const recs = evaluateRules(
+      makeCtx({
+        score: 60,
+        frShare: 0.1,
+        frPageviews: 1000,
+      }),
+    );
+    const r9 = recs.find((r) => r.id === "R9-fr-seo-rewrite");
+    expect(r9).toBeDefined();
+    // Rationale should surface the real percentage so the founder can sanity-check.
+    expect(r9?.rationale).toContain("10%");
+    expect(r9?.rationale).toContain("1,000");
+    expect(r9?.tag).toBe("Long bet");
+    expect(r9?.cta.kind).toBe("url");
+  });
+
+  it("does NOT fire when frShare is healthy (0.5) even with score >= 50", () => {
+    const recs = evaluateRules(
+      makeCtx({
+        score: 60,
+        frShare: 0.5,
+        frPageviews: 1000,
+      }),
+    );
+    expect(recs.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(false);
+  });
+
+  it("does NOT fire when frShare is null (no data = no recommendation)", () => {
+    // null is the content-repo's "intentionally absent" marker (0 pageviews).
+    // Firing R9 here would surface advice based on missing data — safer default
+    // is silence. Same behavior for undefined (content repo hasn't shipped yet).
+    const recs = evaluateRules(
+      makeCtx({
+        score: 60,
+        frShare: null,
+      }),
+    );
+    expect(recs.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(false);
+
+    const recsUndef = evaluateRules(
+      makeCtx({
+        score: 60,
+        frShare: undefined,
+      }),
+    );
+    expect(recsUndef.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(false);
+  });
+
+  it("does NOT fire when score < 50 (article not yet proven globally)", () => {
+    // R9 is an opportunity-cost rule — we only recommend FR rewrites on
+    // articles that already rank. Below score 50 the topic hasn't proven
+    // fit, so R5 / R2 (rewrite-from-scratch rules) are the better surface.
+    const recs = evaluateRules(
+      makeCtx({
+        score: 40,
+        frShare: 0.1,
+      }),
+    );
+    expect(recs.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(false);
+  });
+
+  it("fires via the fr_light flag path even when frShare is absent", () => {
+    // Path B: content repo can force-surface R9 by tagging an article `fr_light`
+    // without exposing the 0.25 threshold in the cron config. Useful when the
+    // writer has qualitative FR-market context that the metric doesn't capture.
+    const recs = evaluateRules(
+      makeCtx({
+        score: 50,
+        flags: ["fr_light"],
+      }),
+    );
+    expect(recs.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(true);
+  });
+
+  it("is refresh-only — does NOT fire on top surface", () => {
+    const recs = evaluateRules(
+      makeCtx({
+        surface: "top",
+        score: 80,
+        frShare: 0.05,
+      }),
+    );
+    expect(recs.some((r) => r.id === "R9-fr-seo-rewrite")).toBe(false);
   });
 });
 
@@ -528,9 +626,9 @@ describe("Lift aggregation fields", () => {
 // ---------------------------------------------------------------------------
 
 describe("listRuleIds", () => {
-  it("returns 8 refresh rule ids (including R8 catch-all)", () => {
+  it("returns 9 refresh rule ids (including R8 catch-all and R9 fr-seo-rewrite)", () => {
     const ids = listRuleIds("refresh");
-    expect(ids).toHaveLength(8);
+    expect(ids).toHaveLength(9);
     expect(ids).toEqual(
       expect.arrayContaining([
         "R4-inject-widgets",
@@ -541,6 +639,7 @@ describe("listRuleIds", () => {
         "R2-trending-h2",
         "R7-merge-redirect",
         "R8-investigate-decline",
+        "R9-fr-seo-rewrite",
       ]),
     );
   });

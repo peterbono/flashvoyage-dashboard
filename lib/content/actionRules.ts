@@ -36,6 +36,14 @@ export interface RuleContext {
   url: string;
   wpId?: number;
   surface: "refresh" | "top";
+  /**
+   * Phase 1 FR-share metadata — NOT part of the composite score.
+   * Only used by R9 to detect "performing globally but not in FR" opportunities.
+   * `null` = intentionally absent; `undefined` = content repo hasn't shipped.
+   * Both are treated as "no signal, don't fire R9" to avoid spammy recommendations.
+   */
+  frShare?: number | null;
+  frPageviews?: number;
 }
 
 export type ActionCta =
@@ -332,6 +340,67 @@ const RULES: Rule[] = [
             label: "Open article",
           },
     }),
+  },
+  {
+    // R9 — FR-SEO rewrite on an article that ranks globally but doesn't
+    // capture the French SERP. Phase 1 of the FR-traffic growth plan
+    // (sibling feat/fr-share-scoring). Gated on frShare < 25% AND composite
+    // score >= 50 so we only fire on proven winners where the opportunity
+    // cost of the missing FR market is real. The `fr_light` flag alternative
+    // path lets the content-repo writer force-fire the rule without exposing
+    // the exact threshold — symmetric with existing flag-based rules.
+    id: "R9-fr-seo-rewrite",
+    surface: "refresh",
+    basePriority: 55,
+    gates: [], // no signal-gate severity — priority driven by composite score
+    when: (ctx) => {
+      // Path A: numeric frShare below threshold AND article is performing
+      // globally (composite >= 50). `null` / `undefined` frShare means the
+      // content repo hasn't computed it yet — we DO NOT fire in that case
+      // to avoid surfacing a "Fix FR" recommendation based on missing data.
+      if (
+        typeof ctx.frShare === "number" &&
+        ctx.frShare < 0.25 &&
+        ctx.score >= 50
+      ) {
+        return true;
+      }
+      // Path B: content-repo flagged this article as `fr_light` — same
+      // editorial intent but the writer can force-surface the rule without
+      // exposing the 0.25 threshold in the cron config.
+      if (ctx.flags.includes("fr_light")) return true;
+      return false;
+    },
+    build: (ctx) => {
+      // Use the real frShare value when available for the rationale; fall
+      // back to a flag-only wording when only `fr_light` triggered us.
+      const hasFrShare = typeof ctx.frShare === "number";
+      const frPct = hasFrShare ? formatPct(ctx.frShare as number) : "unknown";
+      const pvSuffix =
+        typeof ctx.frPageviews === "number" && ctx.frPageviews > 0
+          ? ` out of ${ctx.frPageviews.toLocaleString("en-US")} pageviews`
+          : "";
+      return {
+        headline: "FR-SEO rewrite — high global rank, low FR share",
+        duration: "45 min",
+        durationMinutes: 45,
+        tag: "Long bet",
+        expectedLift: "+20-40% FR traffic on proven topic",
+        rationale: `Add FR-specific H2 (brand names, FR cities), rewrite intro for FR PAA, check meta description uses FR intent keywords. Currently at ${frPct} FR${pvSuffix} — a niche that's proven globally but untapped in FR SERP.`,
+        icon: "Globe",
+        cta: ctx.wpId
+          ? {
+              kind: "url",
+              href: `https://flashvoyage.com/wp-admin/post.php?post=${ctx.wpId}&action=edit`,
+              label: "Edit in WordPress",
+            }
+          : {
+              kind: "url",
+              href: `https://flashvoyage.com/${ctx.slug}/`,
+              label: "Open article",
+            },
+      };
+    },
   },
   {
     // R8 — catch-all "investigate" action. Lowest priority (5) so every other

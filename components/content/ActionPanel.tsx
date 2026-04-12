@@ -27,6 +27,7 @@ import {
   Search,
   TrendingUp,
   GitMerge,
+  Globe,
   Link as LinkIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ const ICON_REGISTRY: Record<string, LucideIcon> = {
   Search,
   TrendingUp,
   GitMerge,
+  Globe,
   Link: LinkIcon,
 };
 
