@@ -50,6 +50,24 @@ interface TikTokStats {
 type SaveState = "idle" | "saving" | "done" | "error";
 
 // ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+export interface ReelSuggestion {
+  /** Short cleaned title (first line of caption, emoji stripped) */
+  title: string;
+  /** Which platforms already have this reel — helps the founder identify cross-posts */
+  platforms: ("instagram" | "facebook")[];
+}
+
+interface Props {
+  /** Optional: IG + FB published reels, used to populate title autocomplete.
+   *  Since the same reel is typically cross-posted to TikTok, the founder can
+   *  pick an existing title instead of retyping. */
+  suggestedTitles?: ReelSuggestion[];
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -61,6 +79,20 @@ const EMPTY_VIDEO: TikTokVideo = {
   comments: 0,
   shares: 0,
 };
+
+// Common reel formats observed in existing entries + pipeline's suggestedFormats.
+// Also rendered as a datalist so the founder picks from known tags instead of
+// inventing new ones that would fragment analytics.
+const KNOWN_FORMATS = [
+  "pick",
+  "budget",
+  "versus",
+  "poll",
+  "humor",
+  "avantapres",
+  "story",
+  "guide",
+];
 
 function recomputeTotals(videos: TikTokVideo[]): Pick<
   TikTokAccount,
@@ -95,7 +127,7 @@ function recomputeTotals(videos: TikTokVideo[]): Pick<
  * a videos table (add/edit/delete rows). "Auto-compute totals" toggle
  * recomputes totals from the video list on save.
  */
-export function TikTokStatsEditor() {
+export function TikTokStatsEditor({ suggestedTitles = [] }: Props = {}) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -305,6 +337,35 @@ export function TikTokStatsEditor() {
                     <Plus className="w-3 h-3" /> Add video
                   </button>
                 </div>
+                {/* Autocomplete sources — browser-native datalists. The title
+                    list comes from IG + FB reels actually published, so the
+                    founder can pick a cross-posted reel instead of retyping.
+                    Format list stays stable (pipeline-canonical tags) to
+                    avoid analytics fragmentation. */}
+                <datalist id="tiktok-title-suggestions">
+                  {suggestedTitles.map((s) => (
+                    <option
+                      key={s.title}
+                      value={s.title}
+                      label={
+                        s.platforms.length > 1
+                          ? `${s.platforms.join(" + ")}`
+                          : s.platforms[0]
+                      }
+                    />
+                  ))}
+                </datalist>
+                <datalist id="tiktok-format-suggestions">
+                  {KNOWN_FORMATS.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+                {suggestedTitles.length > 0 ? (
+                  <p className="text-[10px] text-zinc-500 mb-2">
+                    Start typing in the title field to see suggestions from{" "}
+                    {suggestedTitles.length} reels already published on IG/FB.
+                  </p>
+                ) : null}
                 <div className="overflow-x-auto">
                   <table className="w-full text-[11px] tabular-nums">
                     <thead>
@@ -350,6 +411,7 @@ export function TikTokStatsEditor() {
                                 type="text"
                                 value={v.title}
                                 placeholder="Video title"
+                                list="tiktok-title-suggestions"
                                 onChange={(e) =>
                                   updateVideo(idx, { title: e.target.value })
                                 }
@@ -361,6 +423,7 @@ export function TikTokStatsEditor() {
                                 type="text"
                                 value={v.format ?? ""}
                                 placeholder="e.g. pick"
+                                list="tiktok-format-suggestions"
                                 onChange={(e) =>
                                   updateVideo(idx, { format: e.target.value })
                                 }
