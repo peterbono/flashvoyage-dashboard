@@ -124,6 +124,8 @@ export interface ContentIntelligence {
     score: number;
     monetization: number;
     flags: string[];
+    /** Top 2 strongest signals (symmetric to refreshQueue.weakSignals) — shows WHY it's growing */
+    strongSignals: Array<{ name: keyof ScoreSignals; value: number }>;
     /** Full 6-signal object for the client-side rule engine (v3 Action Recommendations) */
     signals: ScoreSignals;
     /** 7-day composite score delta (may be 0 if no history) */
@@ -276,6 +278,21 @@ export async function GET(req: NextRequest) {
       return entries;
     };
 
+    // Mirror of computeWeakSignals for top performers — highest 2 signals
+    // answer "why is this article winning right now?" so the founder knows
+    // which pattern to replicate on weaker siblings (or amplify via reels/links).
+    const computeStrongSignals = (
+      signals: ScoreSignals | undefined
+    ): Array<{ name: keyof ScoreSignals; value: number }> => {
+      if (!signals) return [];
+      const entries = (Object.entries(signals) as Array<[keyof ScoreSignals, number]>)
+        .filter(([, v]) => typeof v === "number" && v > 0)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 2)
+        .map(([name, value]) => ({ name, value }));
+      return entries;
+    };
+
     // ── KPIs ──────────────────────────────────────────────────────────────
     const totalInvestedUSD = Array.from(costByUrl.values()).reduce(
       (sum, v) => sum + v,
@@ -338,6 +355,7 @@ export async function GET(req: NextRequest) {
         score,
         monetization,
         flags,
+        strongSignals: computeStrongSignals(signals),
         signals,
         delta7d,
         wpId,

@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Trophy, ExternalLink, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
+import { Trophy, ExternalLink, Sparkles, ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
 import { evaluateRules, type ScoreSignals, type ActionRecommendation } from "@/lib/content/actionRules";
-import { SignalExplainer } from "./SignalExplainer";
+import { SignalExplainer, SIGNAL_META as SIGNAL_DOCS, buildSignalTooltip } from "./SignalExplainer";
 import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
@@ -19,6 +19,8 @@ export interface TopPerformerItem {
   score: number;
   monetization: number;
   flags: string[];
+  /** Top 2 strongest signals (symmetric diagnosis to RefreshQueueCard.weakSignals) */
+  strongSignals?: { name: string; value: number }[];
   /** Full 6-signal object for the rule engine */
   signals?: ScoreSignals;
   /** 7-day composite score delta */
@@ -40,6 +42,21 @@ function scoreColorClass(score: number): string {
   if (score >= 70) return "text-emerald-400";
   if (score >= 50) return "text-cyan-400";
   if (score >= 30) return "text-amber-400";
+  return "text-zinc-500";
+}
+
+/** Positive-delta formatter — mirror of RefreshQueueCard.formatDelta but
+ *  optimized for growth framing (shows a + sign even for small deltas). */
+function formatGrowthDelta(delta: number): string {
+  if (delta > 0) return `+${delta.toFixed(0)}`;
+  if (delta < 0) return delta.toFixed(0);
+  return "0";
+}
+
+function growthDeltaColorClass(delta: number): string {
+  if (delta >= 20) return "text-emerald-400";
+  if (delta >= 10) return "text-emerald-500";
+  if (delta > 0) return "text-cyan-400";
   return "text-zinc-500";
 }
 
@@ -125,6 +142,13 @@ export function TopPerformersCard({ items, loading }: Props) {
                   >
                     {idx + 1}
                   </span>
+                  {/* Growth icon — symmetric to RefreshQueueCard's TrendingDown.
+                      Only shown for positive delta to keep the "winning" framing
+                      visually consistent across the row. */}
+                  <TrendingUp
+                    className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${growthDeltaColorClass(item.delta7d ?? 0)}`}
+                    aria-hidden="true"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       {item.url ? (
@@ -185,12 +209,45 @@ export function TopPerformersCard({ items, loading }: Props) {
                         </button>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span
                         className={`text-[10px] tabular-nums font-mono ${scoreColorClass(item.score)}`}
                       >
                         <span className="sr-only">Composite score </span>score {item.score}
                       </span>
+                      {/* 7d delta — symmetric to RefreshQueueCard. Shown for any
+                          non-zero delta (positive or negative) so the viewer sees
+                          a top performer that's losing ground as a warning signal. */}
+                      {typeof item.delta7d === "number" && item.delta7d !== 0 ? (
+                        <span
+                          className={`text-[10px] tabular-nums font-mono ${growthDeltaColorClass(item.delta7d)}`}
+                        >
+                          <span className="sr-only">7-day delta </span>
+                          {formatGrowthDelta(item.delta7d)} pts/7d
+                        </span>
+                      ) : null}
+                      {/* Phase 2: top strong signals (diagnosis for growth) —
+                          mirror of RefreshQueueCard.weakSignals. Shares the same
+                          SIGNAL_DOCS source of truth for tooltips. Answers
+                          "what pattern is working here?" so it can be replicated. */}
+                      {item.strongSignals?.slice(0, 2).map((sig) => {
+                        const meta = SIGNAL_DOCS[sig.name];
+                        if (!meta) return null;
+                        return (
+                          <span
+                            key={sig.name}
+                            tabIndex={0}
+                            role="note"
+                            className={`text-[9px] px-1.5 py-0 rounded border tabular-nums cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${meta.color}`}
+                            title={buildSignalTooltip(sig.name, sig.value)}
+                            aria-label={`${meta.label} signal at ${Math.round(
+                              sig.value * 100,
+                            )} percent`}
+                          >
+                            {meta.label}
+                          </span>
+                        );
+                      })}
                       {item.monetization > 0 ? (
                         <span className="text-[10px] text-blue-400 tabular-nums">
                           <span aria-hidden="true">💰</span>{" "}
