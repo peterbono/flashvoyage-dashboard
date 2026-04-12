@@ -15,6 +15,7 @@ import { AudienceGeoChart } from "@/components/growth/AudienceGeoChart";
 import type { WorkflowsPayload } from "@/components/command-center/SystemHealthBanner";
 import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 import { CostTicker, type CostHistoryEntry } from "@/components/command-center/CostTicker";
+import { TikTokStatsEditor } from "@/components/analytics/TikTokStatsEditor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -314,6 +315,11 @@ export default function MorningBrief() {
 
       {/* ── PUBLICATIONS TABLE ──────────────────────────────────── */}
       <PublicationTable publications={publications} loading={socialLoading} />
+
+      {/* ── TIKTOK MANUAL ENTRY ─────────────────────────────────── */}
+      {/* TikTok API app review is still pending — founder pastes stats
+          manually from TikTok Studio until auto-fetch is approved. */}
+      <TikTokStatsEditor />
 
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

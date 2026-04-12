@@ -128,15 +128,23 @@ async function fetchIGStats(token: string): Promise<SocialStats["instagram"]> {
     const totalComments = reels.reduce((s: number, r: { comments: number }) => s + r.comments, 0);
     const totalImpressions = reels.reduce((s: number, r: { plays: number }) => s + r.plays, 0);
 
-    // Try to get follower count
+    // Try to get follower count — requires instagram_basic + instagram_manage_insights
+    // scopes on the FB Page Token. When the scope is missing, Graph API returns
+    // an error we used to swallow silently; log it so we notice.
     let followerCount: number | null = null;
     try {
       const profileRes = await fetch(
-        `${GRAPH_API}/${IG_ID}?fields=followers_count&access_token=${token}`
+        `${GRAPH_API}/${IG_ID}?fields=followers_count,media_count&access_token=${token}`
       );
       const profileData = await profileRes.json();
-      if (profileData.followers_count) followerCount = profileData.followers_count;
-    } catch { /* non-fatal */ }
+      if (profileData.error) {
+        console.warn("[social-stats] IG profile error:", profileData.error.message);
+      } else if (typeof profileData.followers_count === "number") {
+        followerCount = profileData.followers_count;
+      }
+    } catch (err) {
+      console.warn("[social-stats] IG profile fetch failed:", err);
+    }
 
     return {
       reelsPublished: reels.length,
@@ -208,12 +216,16 @@ async function fetchFBStats(token: string): Promise<SocialStats["facebook"]> {
     const pageLikes = pageData.fan_count ?? null;
     const pageFollowers = pageData.followers_count ?? null;
 
-    // Recent posts (last 10) with inline insights for post_impressions.
+    // Recent posts (last 100) with inline insights for post_impressions.
     // NOTE: the `type` field was deprecated in Graph API v3.3 and now causes
     // (#12) deprecate_post_aggregated_fields_for_attachement — we use
     // attachments{media_type} instead to classify video vs post.
+    //
+    // limit=100 covers ~60d of daily posting, leaving enough headroom for the
+    // 7d/30d/90d period selector without paginating. The old limit=10 was
+    // truncating a 30d window to only the last ~4 days — clearly wrong.
     const feedRes = await fetch(
-      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,attachments{media_type},likes.summary(true),comments.summary(true),shares&limit=10&access_token=${token}`
+      `${GRAPH_API}/${FB_PAGE_ID}/feed?fields=id,message,created_time,attachments{media_type},likes.summary(true),comments.summary(true),shares&limit=100&access_token=${token}`
     );
     const feedData = await feedRes.json();
 
