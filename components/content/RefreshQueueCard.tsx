@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
 import { evaluateRules, type ScoreSignals, type ActionRecommendation } from "@/lib/content/actionRules";
 import { SignalExplainer, SIGNAL_META as SIGNAL_DOCS, buildSignalTooltip } from "./SignalExplainer";
+import { FRShareBadge } from "./FRShareBadge";
 import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,13 @@ export interface RefreshQueueItem {
   signals?: ScoreSignals;
   /** WordPress post id for wp-admin edit URLs */
   wpId?: number;
+  /**
+   * Phase 1 FR-share metadata (content repo feat/fr-share-scoring).
+   * `null` = intentionally absent (0 pageviews); `undefined` = feat not shipped.
+   * Surfaced as a compact pill next to weakSignals; never a composite-score contributor.
+   */
+  frShare?: number | null;
+  frPageviews?: number;
 }
 
 type RowState = "idle" | "refreshing" | "done" | "error";
@@ -272,6 +280,9 @@ export function RefreshQueueCard({ items, loading }: Props) {
                       url: item.url,
                       wpId: item.wpId,
                       surface: "refresh",
+                      // R9-fr-seo-rewrite reads these; safe to omit on other rules.
+                      frShare: item.frShare,
+                      frPageviews: item.frPageviews,
                     },
                     3,
                   ).filter((rec) => !history.isDismissed(item.slug, rec.id))
@@ -437,6 +448,13 @@ export function RefreshQueueCard({ items, loading }: Props) {
                           </span>
                         );
                       })}
+                      {/* FR-share metadata pill — rendered after weakSignals so
+                          the composite diagnosis stays primary. Returns null
+                          when frShare is missing (backward compat). */}
+                      <FRShareBadge
+                        frShare={item.frShare}
+                        frPageviews={item.frPageviews}
+                      />
                       {item.flags.length > 0 && !item.weakSignals?.length ? (
                         <span className="text-[9px] text-zinc-400 truncate">
                           {item.flags[0]}

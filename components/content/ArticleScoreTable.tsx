@@ -19,7 +19,10 @@ import {
   ChevronRight,
   Loader2,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
+import { frShareTextColor } from "./FRShareBadge";
 
 export interface ArticleScore {
   id: string | number;
@@ -41,6 +44,13 @@ export interface ArticleScore {
     technical: number;
   };
   recommendedActions?: string[];
+  /**
+   * Phase 1 FR-share metadata (content repo feat/fr-share-scoring).
+   * `null` = intentionally absent; `undefined` = content repo hasn't shipped.
+   * Rendered as "—" in the FR % column; sortable separately.
+   */
+  frShare?: number | null;
+  frPageviews?: number;
 }
 
 interface Props {
@@ -98,7 +108,7 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
   const bd = article.scoreBreakdown;
   return (
     <TableRow className="border-zinc-800/40 bg-zinc-900/60">
-      <TableCell colSpan={6} className="py-3 px-3 sm:px-6">
+      <TableCell colSpan={7} className="py-3 px-3 sm:px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Score breakdown */}
           {bd && (
@@ -147,8 +157,20 @@ function ExpandedRow({ article }: { article: ArticleScore }) {
 export function ArticleScoreTable({ articles, loading, error }: Props) {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
-  const [sortBy, setSortBy] = useState<"score" | "traffic">("score");
+  // Top-of-table global sort toggle (existing). FR column sort is opt-in
+  // and local — see `frSortDir` below, which is mutually exclusive with
+  // this one so clicking either surface resets the other.
+  const [sortBy, setSortBy] = useState<"score" | "traffic" | "frShare">("score");
+  // Direction toggle for the FR column header. `null` = FR sort inactive
+  // (fall back to score/traffic); "desc" / "asc" = active with direction.
+  const [frSortDir, setFrSortDir] = useState<"asc" | "desc" | null>(null);
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
+
+  const handleFrSortClick = () => {
+    // Cycle: inactive → desc → asc → inactive (back to default sort).
+    setFrSortDir((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
+    setSortBy("frShare");
+  };
 
   const filtered = useMemo(() => {
     let list = articles;
@@ -159,10 +181,23 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
     if (lifecycleFilter !== "all") {
       list = list.filter((a) => a.lifecycle.toUpperCase() === lifecycleFilter.toUpperCase());
     }
-    return [...list].sort((a, b) =>
-      sortBy === "score" ? b.score - a.score : b.traffic7d - a.traffic7d
-    );
-  }, [articles, search, sortBy, lifecycleFilter]);
+    return [...list].sort((a, b) => {
+      if (sortBy === "frShare" && frSortDir !== null) {
+        // Articles with no FR data sink to the bottom regardless of direction
+        // — the column's "—" placeholder has no meaningful numeric rank.
+        const aHas = typeof a.frShare === "number";
+        const bHas = typeof b.frShare === "number";
+        if (!aHas && !bHas) return 0;
+        if (!aHas) return 1;
+        if (!bHas) return -1;
+        const diff = (a.frShare as number) - (b.frShare as number);
+        return frSortDir === "desc" ? -diff : diff;
+      }
+      return sortBy === "traffic"
+        ? b.traffic7d - a.traffic7d
+        : b.score - a.score;
+    });
+  }, [articles, search, sortBy, frSortDir, lifecycleFilter]);
 
   if (loading) {
     return (
@@ -218,11 +253,18 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
         <Button
           variant="ghost"
           size="xs"
-          onClick={() => setSortBy(sortBy === "score" ? "traffic" : "score")}
+          onClick={() => {
+            // Clicking the global toggle always exits FR-sort mode so the
+            // header arrow stays in sync with the active sort field.
+            setFrSortDir(null);
+            setSortBy((prev) =>
+              prev === "score" ? "traffic" : prev === "traffic" ? "score" : "score",
+            );
+          }}
           className="text-zinc-500 hover:text-white text-xs gap-1 sm:ml-auto"
         >
           <ArrowUpDown className="w-3 h-3" />
-          {sortBy === "score" ? "By score" : "By traffic"}
+          {sortBy === "traffic" ? "By traffic" : "By score"}
         </Button>
       </div>
 
@@ -238,12 +280,42 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
               <TableHead className="text-zinc-500 text-xs font-medium w-16 text-right">Score</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-24">Lifecycle</TableHead>
               <TableHead className="text-zinc-500 text-xs font-medium w-20 text-right">Traffic 7d</TableHead>
+              <TableHead className="text-zinc-500 text-xs font-medium w-20 text-right">
+                {/* FR share — sortable. Cycles desc → asc → inactive.
+                    Keyboard users get the same toggle via Enter/Space on the button. */}
+                <button
+                  type="button"
+                  onClick={handleFrSortClick}
+                  aria-label={
+                    sortBy === "frShare" && frSortDir
+                      ? `FR share column, sorted ${frSortDir}ending. Click to change sort.`
+                      : "Sort by FR share"
+                  }
+                  title={
+                    sortBy === "frShare" && frSortDir === "desc"
+                      ? "FR share desc — click for asc"
+                      : sortBy === "frShare" && frSortDir === "asc"
+                        ? "FR share asc — click to clear"
+                        : "Click to sort by FR share"
+                  }
+                  className="inline-flex items-center gap-1 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 rounded-sm"
+                >
+                  <span aria-hidden="true">🇫🇷</span> FR %
+                  {sortBy === "frShare" && frSortDir === "desc" ? (
+                    <ArrowDown className="w-3 h-3" aria-hidden="true" />
+                  ) : sortBy === "frShare" && frSortDir === "asc" ? (
+                    <ArrowUp className="w-3 h-3" aria-hidden="true" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 opacity-50" aria-hidden="true" />
+                  )}
+                </button>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow className="border-zinc-800/40">
-                <TableCell colSpan={6} className="text-xs text-zinc-600 text-center py-6">
+                <TableCell colSpan={7} className="text-xs text-zinc-600 text-center py-6">
                   No articles match the filters.
                 </TableCell>
               </TableRow>
@@ -326,6 +398,24 @@ export function ArticleScoreTable({ articles, loading, error }: Props) {
                             ? `${((article.traffic7d ?? 0) / 1000).toFixed(1)}k`
                             : article.traffic7d}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {typeof article.frShare === "number" ? (
+                          <span
+                            className={`text-xs font-mono tabular-nums ${frShareTextColor(article.frShare)}`}
+                            title={
+                              typeof article.frPageviews === "number" && article.frPageviews > 0
+                                ? `${Math.round(article.frShare * 100)}% of ${article.frPageviews.toLocaleString("en-US")} tracked pageviews`
+                                : `${Math.round(article.frShare * 100)}% FR share`
+                            }
+                          >
+                            {Math.round(article.frShare * 100)}%
+                          </span>
+                        ) : (
+                          <span className="text-xs font-mono text-zinc-600 tabular-nums" aria-label="No FR data">
+                            —
+                          </span>
+                        )}
                       </TableCell>
                     </TableRow>
                     {isExpanded && (

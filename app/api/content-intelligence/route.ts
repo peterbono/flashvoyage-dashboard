@@ -47,7 +47,17 @@ interface ScoreEntry {
   slug: string;
   title: string;
   compositeScore: number;
-  signals: ScoreSignals;
+  signals: ScoreSignals & {
+    /**
+     * Phase 1 FR-share metadata (sibling feat/fr-share-scoring in content repo).
+     * These are METADATA, not composite-score signals — surfaced as badges,
+     * sortable columns, and R9-fr-seo-rewrite trigger. Optional for backward
+     * compat: articles scored before the content-repo feat merges won't have
+     * these fields and must render cleanly (no badge, no crash).
+     */
+    frShare?: number | null;
+    frPageviews?: number;
+  };
   flags: string[];
   date: string;
   wordCount: number;
@@ -116,6 +126,13 @@ export interface ContentIntelligence {
     signals: ScoreSignals;
     /** WordPress post id for building wp-admin edit URLs */
     wpId: number;
+    /**
+     * Phase 1 FR metadata pass-through (0-1). `null` = data intentionally absent
+     * (article with 0 pageviews); `undefined` = content repo hasn't shipped the
+     * fr-share-scoring cron yet. UI must handle both as "no badge".
+     */
+    frShare?: number | null;
+    frPageviews?: number;
   }>;
   topPerformers: Array<{
     slug: string;
@@ -132,6 +149,9 @@ export interface ContentIntelligence {
     delta7d: number;
     /** WordPress post id for building wp-admin edit URLs */
     wpId: number;
+    /** Phase 1 FR metadata (see refreshQueue.frShare) */
+    frShare?: number | null;
+    frPageviews?: number;
   }>;
   fetchedAt: string;
 }
@@ -248,6 +268,13 @@ export async function GET(req: NextRequest) {
     const enriched = scores.map((s) => {
       const prevScore = prevBySlug.get(s.slug);
       const delta7d = typeof prevScore === "number" ? s.compositeScore - prevScore : 0;
+      // Pull FR metadata off the signals bag — the content repo writes them
+      // alongside the 6 composite signals but they do NOT contribute to the
+      // composite score. Pass-through only; never synthesize a default value
+      // because `null` ("no data") and a numeric 0 are semantically different.
+      const sig = s.signals as ScoreEntry["signals"] | undefined;
+      const frShare = sig?.frShare;
+      const frPageviews = sig?.frPageviews;
       return {
         slug: s.slug,
         title: s.title,
@@ -259,6 +286,8 @@ export async function GET(req: NextRequest) {
         flags: s.flags ?? [],
         delta7d,
         wpId: s.wpId,
+        frShare,
+        frPageviews,
       };
     });
 
@@ -329,7 +358,7 @@ export async function GET(req: NextRequest) {
         return a.score - b.score;
       })
       .slice(0, 10)
-      .map(({ slug, title, url, score, delta7d, flags, signals, wpId }) => ({
+      .map(({ slug, title, url, score, delta7d, flags, signals, wpId, frShare, frPageviews }) => ({
         slug,
         title,
         url,
@@ -339,6 +368,8 @@ export async function GET(req: NextRequest) {
         weakSignals: computeWeakSignals(signals),
         signals,
         wpId,
+        frShare,
+        frPageviews,
       }));
 
     // ── Top performers: highest composite score first, ties by monetization ──
@@ -348,7 +379,7 @@ export async function GET(req: NextRequest) {
         return b.monetization - a.monetization;
       })
       .slice(0, 10)
-      .map(({ slug, title, url, score, monetization, flags, signals, delta7d, wpId }) => ({
+      .map(({ slug, title, url, score, monetization, flags, signals, delta7d, wpId, frShare, frPageviews }) => ({
         slug,
         title,
         url,
@@ -359,6 +390,8 @@ export async function GET(req: NextRequest) {
         signals,
         delta7d,
         wpId,
+        frShare,
+        frPageviews,
       }));
 
     const payload: ContentIntelligence = {

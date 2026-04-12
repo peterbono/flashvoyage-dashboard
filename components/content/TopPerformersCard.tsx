@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ActionPanel } from "./ActionPanel";
 import { evaluateRules, type ScoreSignals, type ActionRecommendation } from "@/lib/content/actionRules";
 import { SignalExplainer, SIGNAL_META as SIGNAL_DOCS, buildSignalTooltip } from "./SignalExplainer";
+import { FRShareBadge } from "./FRShareBadge";
 import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,12 @@ export interface TopPerformerItem {
   delta7d?: number;
   /** WordPress post id for wp-admin edit URLs */
   wpId?: number;
+  /**
+   * Phase 1 FR-share metadata (content repo feat/fr-share-scoring).
+   * Same semantics as RefreshQueueItem — see FRShareBadge for thresholds.
+   */
+  frShare?: number | null;
+  frPageviews?: number;
 }
 
 interface Props {
@@ -126,6 +133,10 @@ export function TopPerformersCard({ items, loading }: Props) {
                       url: item.url,
                       wpId: item.wpId,
                       surface: "top",
+                      // R9 is refresh-only today — pass-through is still safe
+                      // in case a future top rule wants FR metadata.
+                      frShare: item.frShare,
+                      frPageviews: item.frPageviews,
                     },
                     3,
                   ).filter((rec) => !history.isDismissed(item.slug, rec.id))
@@ -255,6 +266,13 @@ export function TopPerformersCard({ items, loading }: Props) {
                           {(item.monetization * 100).toFixed(0)}%
                         </span>
                       ) : null}
+                      {/* FR-share metadata pill — placed after monetization so
+                          the revenue signal stays closest to the score. Null-safe
+                          (renders nothing when content repo hasn't shipped fr data). */}
+                      <FRShareBadge
+                        frShare={item.frShare}
+                        frPageviews={item.frPageviews}
+                      />
                     </div>
                   </div>
                   </div>

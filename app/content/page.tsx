@@ -31,6 +31,7 @@ import {
   TopPerformersCard,
   type TopPerformerItem,
 } from "@/components/content/TopPerformersCard";
+import { FRLeaderboardCard } from "@/components/content/FRLeaderboardCard";
 
 // Tab 3 components
 import { ActionsTab } from "@/components/content/ActionsTab";
@@ -225,6 +226,21 @@ export default function ContentPage() {
     const raw = unwrap<Record<string, unknown>>(articleScores.data?.data, 'scores', 'articles', 'items');
     return raw.map(r => {
       const slug = String(r.slug ?? '');
+      const signals = (r.signals as Record<string, unknown> | undefined) ?? undefined;
+      // Phase 1 FR-share metadata pass-through. `null` (intentionally absent)
+      // stays `null`; `undefined` (content repo hasn't shipped yet) stays
+      // `undefined`. Both render as "—" in the Portfolio table.
+      const frShareRaw = signals?.frShare;
+      const frShare: number | null | undefined =
+        frShareRaw === null
+          ? null
+          : typeof frShareRaw === "number"
+            ? frShareRaw
+            : undefined;
+      const frPageviews =
+        typeof signals?.frPageviews === "number"
+          ? (signals.frPageviews as number)
+          : undefined;
       return {
         id: String(r.wpId ?? r.id ?? ''),
         title: String(r.title ?? ''),
@@ -235,6 +251,8 @@ export default function ContentPage() {
         publishedAt: r.date as string ?? r.publishedAt as string ?? undefined,
         actions: (r.actions as string[]) ?? [],
         breakdown: r.signals as Record<string, number> ?? {},
+        frShare,
+        frPageviews,
       };
     }) as unknown as ArticleScore[];
   }, [articleScores.data, lifecycleBySlug]);
@@ -243,6 +261,33 @@ export default function ContentPage() {
   const intelKpis = contentIntel.data?.kpis ?? null;
   const intelRefresh = contentIntel.data?.refreshQueue ?? [];
   const intelTop = contentIntel.data?.topPerformers ?? [];
+
+  // FR leaderboard input — reshape scoreItems into the shape FRLeaderboardCard
+  // needs. Uses the full article list (not just top-10 / refresh-10) so the
+  // "top 10 FR-heavy" and "top 10 FR-light opp" rankings have real signal.
+  const frLeaderboardItems = useMemo(
+    () =>
+      scoreItems
+        .map((s) => {
+          // ArticleScore may carry the typed fields via the page-level pass-through
+          // (we patched scoreItems to forward frShare / frPageviews). Cast here so
+          // the component never needs to re-scan the raw signals blob.
+          const withFr = s as ArticleScore & {
+            frShare?: number | null;
+            frPageviews?: number;
+          };
+          return {
+            slug: withFr.slug ?? "",
+            title: withFr.title,
+            url: withFr.url ?? (withFr.slug ? `https://flashvoyage.com/${withFr.slug}/` : ""),
+            score: withFr.score,
+            frShare: withFr.frShare,
+            frPageviews: withFr.frPageviews,
+          };
+        })
+        .filter((i) => i.title), // defensive: skip empty rows
+    [scoreItems],
+  );
 
   // Total pending action count (for the Actions tab badge) — computed once
   // so both the tab trigger and the ActionsTab content render consistently.
@@ -261,6 +306,9 @@ export default function ContentPage() {
           url: item.url,
           wpId: item.wpId,
           surface: "refresh",
+          // Phase 1 FR metadata — required for R9-fr-seo-rewrite to fire
+          frShare: item.frShare,
+          frPageviews: item.frPageviews,
         },
         3,
       ).length;
@@ -278,6 +326,8 @@ export default function ContentPage() {
           url: item.url,
           wpId: item.wpId,
           surface: "top",
+          frShare: item.frShare,
+          frPageviews: item.frPageviews,
         },
         3,
       ).length;
@@ -455,6 +505,16 @@ export default function ContentPage() {
             <RefreshQueueCard items={intelRefresh} loading={contentIntel.loading} />
             <TopPerformersCard items={intelTop} loading={contentIntel.loading} />
           </div>
+
+          {/* FR market leaderboards (Phase 1 — drives the founder's 5 growth
+              hypotheses: FR-only distribution, sibling creation, reel realloc,
+              SERP cannibalization, partnership outreach). Full-width row so
+              both mini-lists can sit side-by-side on lg screens without
+              stealing horizontal space from the refresh/top cards above. */}
+          <FRLeaderboardCard
+            items={frLeaderboardItems}
+            loading={articleScores.loading}
+          />
 
           {/* Article score table (full width) */}
           <div className="space-y-2">
