@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><title>Seed Actions</title></head>
+<body>
+<h1>Seeding...</h1>
+<script>
+fetch('/seed-actions.json')
+  .then(function(r){return r.json()})
+  .then(function(d){
+    localStorage.setItem('fv-actions-done-v1',JSON.stringify(d));
+    document.body.innerHTML='<h1>Done! 11 entries seeded.</h1><p><a href="/content">Back to dashboard</a></p>';
+  })
+  .catch(function(e){
+    document.body.innerHTML='<h1>Error: '+e.message+'</h1>';
+  });
+</script>
+</body>
+</html>
