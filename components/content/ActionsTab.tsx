@@ -117,7 +117,7 @@ interface ActionGroup {
 
 type GroupState = "idle" | "refreshing" | "done" | "error";
 
-type SidebarTab = "done" | "impact" | "runs";
+type SidebarTab = "done" | "runs";
 
 type FilterKey = "all" | "quick" | "long";
 
@@ -374,12 +374,10 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     switch (sidebarTab) {
       case "done":
         return <ActionDoneHistory />;
-      case "impact":
-        return <ImpactTracker trackedSlugs={trackedSlugs} />;
       case "runs":
         return <ActionHistory />;
     }
-  }, [sidebarTab, trackedSlugs]);
+  }, [sidebarTab]);
 
   // ── Sidebar component (reused in empty + main views) ───────────────────
   const sidebarNode = (
@@ -410,7 +408,6 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
         {(
           [
             { id: "done", label: "Done" },
-            { id: "impact", label: "Impact" },
             { id: "runs", label: "Runs" },
           ] as const
         ).map((tab) => (
@@ -810,6 +807,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
             </button>
           </div>
         )}
+
+        {/* Impact tracker — cohort comparison + per-article Before/Now/Δ */}
+        <ImpactTracker />
       </div>
 
       {/* ─── Right zone: Context sidebar ─── */}
