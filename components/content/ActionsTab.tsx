@@ -46,6 +46,7 @@ import {
 } from "@/lib/content/actionRules";
 import { ActionHistory } from "./ActionHistory";
 import { ActionDoneHistory } from "./ActionDoneHistory";
+import { ImpactTracker } from "./ImpactTracker";
 import { useActionHistory } from "./useActionHistory";
 
 // ---------------------------------------------------------------------------
@@ -252,6 +253,35 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
   }, []);
 
   // ── Hero aggregation ─────────────────────────────────────────────────────
+  // Tracked slugs for the Impact Tracker: all unique articles that appear
+  // in either surface (Refresh Queue or Top Performers) OR have entries in
+  // the action-done history. This gives us "everything the founder cares
+  // about right now" as the tracking scope.
+  const trackedSlugs = useMemo(() => {
+    const map = new Map<string, { slug: string; title: string; url: string }>();
+    for (const item of refreshQueue) {
+      if (!map.has(item.slug)) {
+        map.set(item.slug, { slug: item.slug, title: item.title, url: item.url });
+      }
+    }
+    for (const item of topPerformers) {
+      if (!map.has(item.slug)) {
+        map.set(item.slug, { slug: item.slug, title: item.title, url: item.url });
+      }
+    }
+    // Also include articles from action history that may have left the queue
+    for (const entry of history.entries) {
+      if (!map.has(entry.slug)) {
+        map.set(entry.slug, {
+          slug: entry.slug,
+          title: entry.articleTitle,
+          url: entry.articleUrl,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [refreshQueue, topPerformers, history.entries]);
+
   const hero = useMemo(() => {
     const count = evaluated.length;
     const quickWins = evaluated.filter(
@@ -440,6 +470,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Impact Tracker — score evolution of tracked articles */}
+      <ImpactTracker trackedSlugs={trackedSlugs} />
 
       {/* Groups */}
       <div className="space-y-2">
