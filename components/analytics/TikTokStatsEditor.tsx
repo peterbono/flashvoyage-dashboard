@@ -242,6 +242,14 @@ function recomputeTotals(videos: TikTokVideo[]): Pick<
 // Component
 // ---------------------------------------------------------------------------
 
+interface EditorProps {
+  /** Called after a successful save so the parent can force-refresh the
+   *  analytics page's /api/social-stats poll — otherwise the TikTok card at
+   *  the top of the dashboard stays stale for up to 7 min (2 min poll + 5
+   *  min raw-CDN edge cache on GitHub). */
+  onSaved?: () => void;
+}
+
 /**
  * TikTok stats importer — drop a CSV export from TikTok Studio.
  *
@@ -254,7 +262,7 @@ function recomputeTotals(videos: TikTokVideo[]): Pick<
  * — those stay as manual inputs. Video totals auto-compute from the parsed
  * rows on save (views + likes + comments + shares).
  */
-export function TikTokStatsEditor() {
+export function TikTokStatsEditor({ onSaved }: EditorProps = {}) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -412,13 +420,24 @@ export function TikTokStatsEditor() {
       setStats(json);
       setSaveState("done");
       setTimeout(() => setSaveState("idle"), 4000);
+
+      // Notify the parent so the analytics page can force-refresh the
+      // /api/social-stats poll. Without this the "Followers" card stays
+      // stale for up to 7 min (2 min client poll + 5 min raw-CDN edge
+      // cache). Fire-and-forget: a failure here shouldn't surface to the
+      // user since the save itself already succeeded.
+      try {
+        onSaved?.();
+      } catch (err) {
+        console.warn("[tiktok-editor] onSaved callback threw:", err);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[tiktok-editor] save failed:", msg, err);
       setSaveState("error");
       setTimeout(() => setSaveState("idle"), 6000);
     }
-  }, [stats]);
+  }, [stats, onSaved]);
 
   const totals = stats ? recomputeTotals(stats.videos) : null;
 

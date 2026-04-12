@@ -107,6 +107,24 @@ export default function MorningBrief() {
     }
   }, [dateRange.preset, refetchSocial]);
 
+  // Called from TikTokStatsEditor on successful save — force-refresh the
+  // /api/social-stats data so the top "Followers" card picks up the new
+  // TikTok followers count instantly. Without this, the user sees stale
+  // data for up to 7 min (2 min client poll + 5 min raw CDN edge cache).
+  // Differs from handleRefresh: skips the daily-analytics workflow dispatch
+  // (which takes 3 min and isn't needed for a pure tiktok-stats.json edit).
+  const handleTikTokSaved = useCallback(async () => {
+    try {
+      await fetch(
+        `/api/social-stats?period=${dateRange.preset}&bypass-cache=1`,
+        { cache: "no-store" },
+      );
+      await refetchSocial();
+    } catch (err) {
+      console.warn("[analytics] tiktok-save refresh failed:", err);
+    }
+  }, [dateRange.preset, refetchSocial]);
+
   const { data: workflowData, loading: wfLoading } =
     usePolling<WorkflowsPayload>("/api/workflows", 30_000);
 
@@ -326,7 +344,7 @@ export default function MorningBrief() {
           `NotFoundError: insertBefore` → renderer crash. With the
           boundary, the failure stays scoped to this card. */}
       <TikTokStatsEditorBoundary>
-        <TikTokStatsEditor />
+        <TikTokStatsEditor onSaved={handleTikTokSaved} />
       </TikTokStatsEditorBoundary>
 
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}

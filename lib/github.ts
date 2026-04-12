@@ -87,7 +87,13 @@ export async function fetchContentFile<T = unknown>(
     if (cached !== undefined) return cached;
   }
 
-  const rawUrl = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${path}`;
+  // When the caller explicitly bypasses our in-memory cache (ttl=0), also
+  // bust GitHub's raw-CDN edge cache by appending a timestamp query param.
+  // Without this, raw.githubusercontent.com serves the previous version for
+  // ~5-10 min after a write — which is what caused the dashboard to show
+  // stale TikTok follower counts right after a manual edit.
+  const cacheBuster = ttl === 0 ? `?t=${Date.now()}` : "";
+  const rawUrl = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${path}${cacheBuster}`;
   const res = await fetch(rawUrl, { cache: "no-store" });
 
   if (!res.ok) {
