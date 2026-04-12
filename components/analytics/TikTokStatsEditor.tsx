@@ -11,6 +11,7 @@ import {
   Loader2,
   Upload,
   FileText,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
@@ -53,6 +54,20 @@ type ParseState =
   | { status: "parsing" }
   | { status: "parsed"; count: number; filename: string }
   | { status: "error"; message: string };
+
+/** Persistent "last successful save" receipt — survives transient UI state and
+ *  is stored in localStorage so the founder always has proof the save landed,
+ *  even if the page crashes or the "Saved" toast disappears before they see it. */
+interface SaveReceipt {
+  at: string; // ISO timestamp
+  videoCount: number;
+  followers: number;
+  commitFileUrl: string; // deep link to data/tiktok-stats.json on GitHub
+}
+
+const RECEIPT_STORAGE_KEY = "fv-tiktok-save-receipt-v1";
+const CONTENT_FILE_URL =
+  "https://github.com/peterbono/flashvoyage-ultra-content/blob/main/data/tiktok-stats.json";
 
 // ---------------------------------------------------------------------------
 // CSV parser — handles the TikTok Studio "Content" export format
@@ -247,7 +262,21 @@ export function TikTokStatsEditor() {
   const [stats, setStats] = useState<TikTokStats | null>(null);
   const [parseState, setParseState] = useState<ParseState>({ status: "idle" });
   const [dragActive, setDragActive] = useState(false);
+  const [receipt, setReceipt] = useState<SaveReceipt | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Hydrate the persistent save receipt from localStorage on mount — so the
+  // founder sees "last saved at X" even after a browser crash or hard refresh.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RECEIPT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SaveReceipt;
+      if (parsed && typeof parsed.at === "string") setReceipt(parsed);
+    } catch {
+      // Corrupt or unavailable storage — ignore, next save will rewrite.
+    }
+  }, []);
 
   // Load current stats the first time the panel opens.
   const loadStats = useCallback(async () => {
@@ -347,15 +376,47 @@ export function TikTokStatsEditor() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ account, videos: stats.videos }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Try to read the server error body for diagnostics instead of
+        // swallowing it as a generic HTTP N code.
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) detail = body.error;
+        } catch {
+          /* non-JSON body, keep status code */
+        }
+        throw new Error(detail);
+      }
       const json = (await res.json()) as TikTokStats;
+
+      // Persist the save receipt BEFORE touching component state — so even if
+      // the subsequent render crashes the tab, the founder can reload and see
+      // "last saved" still rendered from localStorage.
+      const nextReceipt: SaveReceipt = {
+        at: new Date().toISOString(),
+        videoCount: json.videos.length,
+        followers: json.account.followers,
+        commitFileUrl: CONTENT_FILE_URL,
+      };
+      try {
+        window.localStorage.setItem(
+          RECEIPT_STORAGE_KEY,
+          JSON.stringify(nextReceipt),
+        );
+      } catch {
+        /* storage full or disabled — non-fatal */
+      }
+      setReceipt(nextReceipt);
+
       setStats(json);
       setSaveState("done");
       setTimeout(() => setSaveState("idle"), 4000);
     } catch (err) {
-      console.error("[tiktok-editor] save", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[tiktok-editor] save failed:", msg, err);
       setSaveState("error");
-      setTimeout(() => setSaveState("idle"), 5000);
+      setTimeout(() => setSaveState("idle"), 6000);
     }
   }, [stats]);
 
@@ -528,6 +589,43 @@ export function TikTokStatsEditor() {
                   ))}
                 </div>
               </section>
+
+              {/* ── Persistent save receipt ─────────────────────── */}
+              {/* Renders the LAST SUCCESSFUL save independently of the
+                  transient `saveState`. Backed by localStorage so even if
+                  the tab crashes mid-save or refreshes, the founder still
+                  sees "saved at X" with a link to the actual GitHub file
+                  as proof the data landed. This is the B-fix for the bug
+                  where clicking Save showed a browser error page but the
+                  PUT actually succeeded — founder was left unsure whether
+                  their data was saved. */}
+              {receipt ? (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+                  <div className="flex items-center gap-2 text-[11px] text-emerald-300">
+                    <Check className="w-3 h-3 shrink-0" aria-hidden="true" />
+                    <span>
+                      Last save:{" "}
+                      <time
+                        dateTime={receipt.at}
+                        title={new Date(receipt.at).toLocaleString()}
+                      >
+                        {new Date(receipt.at).toLocaleString()}
+                      </time>
+                      {" · "}
+                      {receipt.videoCount} videos · {receipt.followers} followers
+                    </span>
+                  </div>
+                  <a
+                    href={receipt.commitFileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline"
+                  >
+                    View on GitHub
+                    <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  </a>
+                </div>
+              ) : null}
 
               {/* ── Save bar ────────────────────────────────────── */}
               <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
