@@ -22,6 +22,14 @@ import type { ActionRecommendation } from "./actionRules";
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Whether this history entry came from a manual "Mark done" click on the UI
+ * ("MANUAL") or was written by the auto-apply runner after it executed an
+ * edit on the founder's behalf ("AUTO_LOW" / "AUTO_MED"). Optional for
+ * backward compat — any entry without a `source` is treated as MANUAL.
+ */
+export type ActionDoneSource = "AUTO_LOW" | "AUTO_MED" | "MANUAL";
+
 export interface ActionDoneEntry {
   /** Unique id: `${slug}::${ruleId}::${markedAt}` — lets us dedupe rapid
       double-clicks by bucketing to the second. */
@@ -40,6 +48,8 @@ export interface ActionDoneEntry {
   /** Optional note captured from the rationale at the time of click — helps
       future-you remember why you marked it done. */
   rationale?: string;
+  /** How the entry was recorded. Defaults to "MANUAL" on read when absent. */
+  source?: ActionDoneSource;
 }
 
 export interface ActionHistoryState {

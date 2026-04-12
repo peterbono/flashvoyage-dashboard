@@ -42,6 +42,9 @@ import { ActionDoneHistory } from "./ActionDoneHistory";
 import { ImpactTracker } from "./ImpactTracker";
 import { HealthRing } from "./HealthRing";
 import { useActionHistory } from "./useActionHistory";
+import { AutoApplySettings } from "./AutoApplySettings";
+import { AutoLog } from "./AutoLog";
+import { DraftsTab } from "./DraftsTab";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -117,7 +120,7 @@ interface ActionGroup {
 
 type GroupState = "idle" | "refreshing" | "done" | "error";
 
-type SidebarTab = "done" | "runs";
+type SidebarTab = "done" | "runs" | "auto-log" | "drafts";
 
 type FilterKey = "all" | "quick" | "long";
 
@@ -376,6 +379,10 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
         return <ActionDoneHistory />;
       case "runs":
         return <ActionHistory />;
+      case "auto-log":
+        return <AutoLog />;
+      case "drafts":
+        return <DraftsTab />;
     }
   }, [sidebarTab]);
 
@@ -409,6 +416,8 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
           [
             { id: "done", label: "Done" },
             { id: "runs", label: "Runs" },
+            { id: "auto-log", label: "Auto log" },
+            { id: "drafts", label: "Drafts" },
           ] as const
         ).map((tab) => (
           <button
@@ -449,25 +458,28 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     const totalArticles = refreshQueue.length + topPerformers.length;
     return (
       <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
-        {/* Left zone — empty celebration */}
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5">
-            <CheckCircle2
-              className="w-7 h-7 text-emerald-400"
-              aria-hidden="true"
-            />
+        {/* Left zone — settings + empty celebration */}
+        <div className="space-y-4">
+          <AutoApplySettings />
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-5">
+              <CheckCircle2
+                className="w-7 h-7 text-emerald-400"
+                aria-hidden="true"
+              />
+            </div>
+            <h3 className="text-lg font-semibold text-zinc-50">
+              Portfolio is healthy
+            </h3>
+            <p className="text-sm text-zinc-400 mt-2 max-w-sm">
+              {totalArticles > 0
+                ? `${totalArticles} articles scanned \u2014 0 actions needed right now.`
+                : "No articles loaded yet."}
+            </p>
+            <p className="text-xs text-zinc-500 mt-4">
+              Rules re-evaluate on every dashboard poll (every 2 min).
+            </p>
           </div>
-          <h3 className="text-lg font-semibold text-zinc-50">
-            Portfolio is healthy
-          </h3>
-          <p className="text-sm text-zinc-400 mt-2 max-w-sm">
-            {totalArticles > 0
-              ? `${totalArticles} articles scanned \u2014 0 actions needed right now.`
-              : "No articles loaded yet."}
-          </p>
-          <p className="text-xs text-zinc-500 mt-4">
-            Rules re-evaluate on every dashboard poll (every 2 min).
-          </p>
         </div>
 
         {/* Right zone — sidebar always visible */}
@@ -757,6 +769,9 @@ export function ActionsTab({ refreshQueue, topPerformers, loading }: Props) {
     <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
       {/* ─── Left zone: Today's Briefing table ─── */}
       <div className="min-w-0 space-y-4">
+        {/* Auto-apply settings — 3-tier toggle matrix at top of Actions tab */}
+        <AutoApplySettings />
+
         {/* Header + progress bar */}
         <div>
           <div className="flex items-baseline justify-between mb-2">
