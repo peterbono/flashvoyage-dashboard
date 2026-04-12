@@ -16,6 +16,7 @@ import type { WorkflowsPayload } from "@/components/command-center/SystemHealthB
 import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 import { CostTicker, type CostHistoryEntry } from "@/components/command-center/CostTicker";
 import { TikTokStatsEditor } from "@/components/analytics/TikTokStatsEditor";
+import { TikTokStatsEditorBoundary } from "@/components/analytics/TikTokStatsEditorBoundary";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -318,8 +319,15 @@ export default function MorningBrief() {
 
       {/* ── TIKTOK CSV IMPORT ───────────────────────────────────── */}
       {/* TikTok API app review is still pending — founder drops the
-          "Content" CSV export from TikTok Studio to refresh video stats. */}
-      <TikTokStatsEditor />
+          "Content" CSV export from TikTok Studio to refresh video stats.
+          Wrapped in an error boundary because browser extensions
+          (LaunchDarkly, Claude Chrome, MetaMask/LavaMoat) mutate the DOM
+          during re-render and blow up React's reconciler with
+          `NotFoundError: insertBefore` → renderer crash. With the
+          boundary, the failure stays scoped to this card. */}
+      <TikTokStatsEditorBoundary>
+        <TikTokStatsEditor />
+      </TikTokStatsEditorBoundary>
 
       {/* ── GROWTH INSIGHTS ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
