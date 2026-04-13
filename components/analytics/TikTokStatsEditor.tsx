@@ -164,7 +164,10 @@ function shortenTitle(raw: string): string {
 /** Heuristic format detection from the full caption's hashtags + keywords. */
 function detectFormat(caption: string): string | undefined {
   const lower = caption.toLowerCase();
-  if (/#trippick|5 spots|3 spots|top \d/.test(lower)) return "pick";
+  // FV-FIX 2026-04-14: broadened pick/listicle regex — kept in sync with
+  // performance-scorer.js detectFormatFromTitle() server-side.
+  // Catches FR nouns: spots/plats/choses/lieux/endroits/raisons/erreurs/pièges/astuces.
+  if (/#trippick|\b\d+\s+(spots?|plats|choses|lieux|endroits|raisons|erreurs|pi[eè]ges|astuces|incontournables?)\b|\btop\s*\d/.test(lower)) return "pick";
   if (/#budget|budget|€\/jour|\/nuit/.test(lower)) return "budget";
   if (/expectation.*reality|avant.*apr[eè]s|#avantapres/.test(lower)) return "avantapres";
   if (/\bvs\b|versus|#versus/.test(lower)) return "versus";
