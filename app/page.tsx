@@ -17,6 +17,7 @@ import { AlertsFeed } from "@/components/command-center/AlertsFeed";
 import { CostTicker, type CostHistoryEntry } from "@/components/command-center/CostTicker";
 import { TikTokStatsEditor } from "@/components/analytics/TikTokStatsEditor";
 import { TikTokStatsEditorBoundary } from "@/components/analytics/TikTokStatsEditorBoundary";
+import { RevenueCard } from "@/components/analytics/RevenueCard";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -282,7 +283,8 @@ export default function MorningBrief() {
       </div>
 
       {/* ── ACCOUNT ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 5-column row on lg: 4 social cross-platform cards + Revenue (TP). */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <CrossPlatformMetricCard
           label="Followers"
           icon={Users}
@@ -330,6 +332,7 @@ export default function MorningBrief() {
           delta={deltas ? { value: deltas.publications, period: dateRange.preset } : undefined}
           loading={socialLoading}
         />
+        <RevenueCard />
       </div>
 
       {/* ── PUBLICATIONS TABLE ──────────────────────────────────── */}

@@ -183,11 +183,33 @@ function buildChartData(
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+// Travelpayouts by-slug response — joined in via wpId (articleId).
+interface SlugEarnings {
+  amount: number;
+  conversions: number;
+  lastConversion: string | null;
+}
+interface BySlugResponse {
+  bySlug: Record<string, SlugEarnings>;
+  totalSlugs: number;
+  totalRevenue: number;
+  lastUpdated: string;
+}
+
+/** Rough $/€ fallback — cost-history is in USD, TP revenue is in EUR. */
+const USD_PER_EUR = 1.08;
+
 export default function CostsPage() {
   // ── Data fetch ───────────────────────────────────────────────────────────
   const [entries, setEntries] = useState<CostEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Travelpayouts revenue — fetched once and joined on wpId (articleId) for
+  // the Articles table's Revenue/ROI columns. We intentionally swallow
+  // errors (503 when the env token is missing) so the Costs page still
+  // renders; the join just yields 0€ everywhere in that case.
+  const [bySlug, setBySlug] = useState<Record<string, SlugEarnings>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -205,6 +227,16 @@ export default function CostsPage() {
         setError(String(err));
         setLoading(false);
       });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/travelpayouts/by-slug")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<BySlugResponse>;
+      })
+      .then((data) => setBySlug(data.bySlug ?? {}))
+      .catch(() => setBySlug({}));
   }, []);
 
   // ── Date Range Filter ────────────────────────────────────────────────────
@@ -936,12 +968,26 @@ export default function CostsPage() {
                       </div>
                     </TableHead>
                   )}
+                  {channel !== "reels" && (
+                    <>
+                      <TableHead className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          Revenue
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          ROI
+                        </div>
+                      </TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pagedEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={channel === "reels" ? 6 : 7} className="text-center text-zinc-600 py-8">
+                    <TableCell colSpan={channel === "reels" ? 6 : 9} className="text-center text-zinc-600 py-8">
                       {filteredEntries.length === 0 && entries.length > 0 ? (
                         <div className="space-y-1">
                           <p>No costs in this period.</p>
@@ -1014,12 +1060,63 @@ export default function CostsPage() {
                               ${(entry.costPerWord ?? 0).toFixed(6)}
                             </TableCell>
                           )}
+                          {channel !== "reels" && (() => {
+                            // Join Travelpayouts revenue by wpId. articleId
+                            // on the cost entry is the WordPress post id,
+                            // which matches the numeric prefix of sub_id.
+                            const wpKey = entry.articleId != null
+                              ? String(entry.articleId)
+                              : null;
+                            const slugRev = wpKey ? bySlug[wpKey] : undefined;
+                            const revenueEur = slugRev?.amount ?? 0;
+                            // Cost-history is USD; TP revenue is EUR. Convert
+                            // EUR→USD with a coarse 1.08 constant so both
+                            // sides of the ROI ratio are in the same unit.
+                            // When FX matters (multi-currency payouts) we'll
+                            // swap in a live rate; for now this is stable
+                            // enough for H1 ROI triage.
+                            const revenueUsd = revenueEur * USD_PER_EUR;
+                            const cost = entry.totalCostUSD ?? 0;
+                            const hasRevenue = revenueEur > 0;
+                            const roiPct = hasRevenue && cost > 0
+                              ? (revenueUsd / cost) * 100
+                              : null;
+                            const roiGood = roiPct !== null && roiPct > 100;
+                            return (
+                              <>
+                                <TableCell className="text-right tabular-nums">
+                                  {hasRevenue ? (
+                                    <span className="text-emerald-400 font-medium">
+                                      €{revenueEur.toFixed(2)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-zinc-700">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {roiPct !== null ? (
+                                    <span
+                                      className={
+                                        roiGood
+                                          ? "text-emerald-400 font-medium"
+                                          : "text-zinc-500"
+                                      }
+                                    >
+                                      {roiPct.toFixed(0)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-zinc-700">—</span>
+                                  )}
+                                </TableCell>
+                              </>
+                            );
+                          })()}
                         </TableRow>
 
                         {/* Expanded: per-step breakdown */}
                         {isExpanded && stepEntries.length > 0 && (
                           <TableRow className="bg-zinc-950/50 hover:bg-zinc-950/50">
-                            <TableCell colSpan={channel === "reels" ? 6 : 7} className="p-0">
+                            <TableCell colSpan={channel === "reels" ? 6 : 9} className="p-0">
                               <div className="px-6 py-3 ml-8 border-l-2 border-zinc-700/50">
                                 <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-2">
                                   Step Breakdown
