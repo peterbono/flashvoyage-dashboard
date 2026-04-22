@@ -275,6 +275,11 @@ export function TikTokStatsEditor({ onSaved }: EditorProps = {}) {
   const [dragActive, setDragActive] = useState(false);
   const [receipt, setReceipt] = useState<SaveReceipt | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Incremented after each successful CSV parse to force a full remount of
+  // the editor body. Defends against extension-induced `insertBefore` crashes:
+  // remount discards the extension-polluted subtree and mounts fresh, so
+  // React never has to reconcile against nodes it didn't create.
+  const [remountKey, setRemountKey] = useState(0);
 
   // Hydrate the persistent save receipt from localStorage on mount — so the
   // founder sees "last saved at X" even after a browser crash or hard refresh.
@@ -353,6 +358,7 @@ export function TikTokStatsEditor({ onSaved }: EditorProps = {}) {
               },
         );
         setParseState({ status: "parsed", count: videos.length, filename: file.name });
+        setRemountKey((k) => k + 1);
       } catch (err) {
         setParseState({ status: "error", message: String(err) });
       }
@@ -486,7 +492,7 @@ export function TikTokStatsEditor({ onSaved }: EditorProps = {}) {
               </button>
             </div>
           ) : !stats ? null : (
-            <div className="space-y-4">
+            <div key={remountKey} className="space-y-4">
               {/* ── CSV Drop Zone ───────────────────────────────── */}
               <div
                 onDragEnter={(e) => {
