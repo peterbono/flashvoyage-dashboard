@@ -256,6 +256,61 @@ export async function cancelWorkflowRun(runId: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// listContentDirectory  –  list files inside a directory of the content repo
+// ---------------------------------------------------------------------------
+
+export interface ContentDirectoryEntry {
+  name: string;
+  path: string;
+  type: "file" | "dir" | "symlink" | "submodule";
+  size: number;
+  sha: string;
+}
+
+/**
+ * List entries inside a directory of the content repo via the GitHub
+ * Contents API. Returns an empty array if the directory does not exist yet.
+ *
+ * Results are cached with the same TTL machinery as `fetchContentFile`.
+ */
+export async function listContentDirectory(
+  path: string,
+  opts?: { cacheTtlMs?: number }
+): Promise<ContentDirectoryEntry[]> {
+  const ttl = opts?.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const cacheKey = `listdir:${path}`;
+
+  if (ttl > 0) {
+    const cached = cacheGet<ContentDirectoryEntry[]>(cacheKey);
+    if (cached !== undefined) return cached;
+  }
+
+  const token = getToken();
+  const url = `${API_BASE}/contents/${path}?ref=${BRANCH}`;
+  const res = await fetch(url, { headers: headers(token), cache: "no-store" });
+
+  // 404 → directory doesn't exist yet; return empty list rather than throw
+  if (res.status === 404) {
+    if (ttl > 0) cacheSet(cacheKey, [], ttl);
+    return [];
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      `GitHub list-directory failed for "${path}": ${res.status} ${res.statusText}`
+    );
+  }
+
+  const json = (await res.json()) as ContentDirectoryEntry[] | ContentDirectoryEntry;
+  // Contents API returns an array for a directory, or a single object if the
+  // path resolves to a file. We only care about directory listings here.
+  const entries = Array.isArray(json) ? json : [];
+
+  if (ttl > 0) cacheSet(cacheKey, entries, ttl);
+  return entries;
+}
+
+// ---------------------------------------------------------------------------
 // writeContentFile  –  create or update a file in the content repo
 // ---------------------------------------------------------------------------
 
