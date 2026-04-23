@@ -11,6 +11,7 @@ import {
   Film,
   DollarSign,
   FileText,
+  Megaphone,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -33,6 +34,7 @@ const socialNav = [
 const websiteNav = [
   { href: "/costs", label: "Costs", icon: DollarSign },
   { href: "/content", label: "Articles", icon: FileText },
+  { href: "/amplifier", label: "Amplifier", icon: Megaphone },
 ];
 
 const navItems = [...socialNav, ...websiteNav];
